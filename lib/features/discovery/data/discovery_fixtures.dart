@@ -224,12 +224,18 @@ MockApiClient discoveryFixtureClient({
       'firstDeparture': '05:00:00',
       'lastDeparture': '22:00:00',
       'directions': [
-        {
-          'direction': order == 14 ? 'TowardBenThanh' : 'TowardSuoiTien',
-          'towardStationName': order == 14 ? 'Bến Thành' : 'Bến xe Suối Tiên',
-          'departures': ['08:00:00', '08:08:00'],
-          'headways': exampleHeadways,
-        },
+        for (final direction in [
+          if (order > 1) 'TowardBenThanh',
+          if (order < 14) 'TowardSuoiTien',
+        ])
+          {
+            'direction': direction,
+            'towardStationName': direction == 'TowardBenThanh'
+                ? 'Bến Thành'
+                : 'Bến xe Suối Tiên',
+            'departures': ['08:00:00', '08:08:00'],
+            'headways': exampleHeadways,
+          },
       ],
     });
   }

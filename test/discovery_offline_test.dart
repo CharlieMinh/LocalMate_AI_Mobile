@@ -53,6 +53,33 @@ void main() {
     repository = DiscoveryRepository(client);
   });
   tearDown(() => client.dispose());
+  for (var order = 1; order <= 14; order++) {
+    test('station $order exposes only valid directional groups', () async {
+      final response = await client.get(
+        '/metro/stations/$order/departures',
+        (data) => data as Map<String, dynamic>,
+      );
+      final directions = rows(response['directions'], (j) => j);
+      final expected = [
+        if (order > 1) 'TowardBenThanh',
+        if (order < 14) 'TowardSuoiTien',
+      ];
+      expect(directions.map((d) => d['direction']), expected);
+      expect(
+        directions.map((d) => d['direction']).toSet().length,
+        expected.length,
+      );
+      expect(directions.map((d) => d['towardStationName']), [
+        if (order > 1) 'Bến Thành',
+        if (order < 14) 'Bến xe Suối Tiên',
+      ]);
+      expect(response['precision'], 'Headway');
+      expect(response['station'], {
+        'order': order,
+        'name': stations[order - 1]['name'],
+      });
+    });
+  }
   test('compiled station fixtures match copied Backend seed exactly', () async {
     expect(
       stationSeed,
@@ -183,6 +210,7 @@ void main() {
     () async {
       final list = await repository.stations(CancelToken());
       expect(list.map((s) => s.order), List.generate(14, (i) => i + 1));
+      expect(list.map((s) => s.name), stations.map((s) => s['name']));
       expect(list.first.name, 'Bến Thành');
       expect(list[3].name, 'Công viên Văn Thánh');
       expect(list.last.name, 'Bến xe Suối Tiên');

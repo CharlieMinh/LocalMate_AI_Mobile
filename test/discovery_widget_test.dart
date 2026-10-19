@@ -20,6 +20,38 @@ import 'discovery_offline_test.dart' show loadStationFixtures, jsonReply;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final precision in ['Headway', 'Exact']) {
+    testWidgets('out-of-period $precision hides departures and headways', (
+      tester,
+    ) async {
+      final schedule = MetroSchedule.fromJson({
+        ...scheduleMetadata,
+        'precision': precision,
+        'isWithinEffectivePeriod': false,
+        'directions': [
+          {
+            'towardStationName': 'Bến Thành',
+            'headways': exampleHeadways,
+            'departures': ['08:00:00'],
+          },
+        ],
+      });
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+      );
+      expect(find.text('Hướng Bến Thành'), findsOneWidget);
+      expect(find.text('08:00'), findsNothing);
+      expect(find.textContaining('khoảng 8 phút/chuyến'), findsNothing);
+      expect(
+        find.text('Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Chưa đủ dữ liệu lịch tàu để hiển thị.'),
+        findsOneWidget,
+      );
+    });
+  }
   for (final width in [320.0, 390.0, 768.0]) {
     for (final scale in [1.0, 2.0]) {
       testWidgets('native media width=$width scale=$scale', (tester) async {
@@ -166,6 +198,9 @@ void main() {
       expect(find.text('08:00 → 08:02 (lịch mẫu)'), findsNothing);
       await tapVisible(tester, find.text('Ba Son'));
       expect(find.text('Ga Ba Son'), findsOneWidget);
+      expect(find.text('Hướng Bến Thành'), findsOneWidget);
+      expect(find.text('Hướng Bến xe Suối Tiên'), findsOneWidget);
+      expect(find.text('08:00 · 08:08'), findsNothing);
       expect(find.text('Chưa có địa điểm quanh ga'), findsOneWidget);
     },
   );
