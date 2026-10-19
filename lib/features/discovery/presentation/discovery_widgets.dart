@@ -56,7 +56,14 @@ class SectionTitle extends StatelessWidget {
     padding: const EdgeInsets.only(top: 20, bottom: 12),
     child: Semantics(
       header: true,
-      child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Brand.ink,
+        ),
+      ),
     ),
   );
 }
@@ -151,14 +158,16 @@ String? costLabel(Place p) => p.costMin == null || p.costMax == null
     : '${p.costMin!.toStringAsFixed(0)} – ${p.costMax!.toStringAsFixed(0)} đ (ước tính mẫu)';
 
 class PlaceTile extends StatelessWidget {
-  const PlaceTile(this.place, {super.key});
+  const PlaceTile(this.place, {super.key, this.compact = false});
   final Place place;
+  final bool compact;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Card(
       margin: EdgeInsets.zero,
       elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: Color(0xFFDCE2ED)),
@@ -169,29 +178,52 @@ class PlaceTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PlaceMedia(place.imageUrl, category: place.category),
+            PlaceMedia(
+              place.imageUrl,
+              height: compact ? 106 : 160,
+              category: place.category,
+            ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(compact ? 12 : 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    categoryLabel(place.category),
-                    style: const TextStyle(
-                      color: Brand.navy,
-                      fontWeight: FontWeight.w600,
+                  if (!compact)
+                    Text(
+                      categoryLabel(place.category),
+                      style: const TextStyle(
+                        color: Brand.navy,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 6),
                   Text(
                     place.name,
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: compact
+                        ? const TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: Brand.ink,
+                            fontWeight: FontWeight.w700,
+                          )
+                        : Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
-                  Text(place.address),
+                  if (compact)
+                    Text(
+                      categoryLabel(place.category),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  if (!compact) Text(place.address),
                   if (place.stationName != null)
-                    Text('Ga ${place.stationName}'),
-                  if (costLabel(place) != null) Text(costLabel(place)!),
+                    Text(
+                      'Ga ${place.stationName}',
+                      style: compact
+                          ? const TextStyle(fontSize: 11, color: Brand.navy)
+                          : null,
+                    ),
+                  if (!compact && costLabel(place) != null)
+                    Text(costLabel(place)!),
                 ],
               ),
             ),
