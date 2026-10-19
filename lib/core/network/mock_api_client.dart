@@ -67,9 +67,39 @@ class MockApiClient {
     String path,
     T Function(Object?) decode, {
     CancelToken? cancelToken,
+    Map<String, String>? headers,
+  }) async {
+    return _request(
+      'GET',
+      path,
+      decode,
+      cancelToken: cancelToken,
+      headers: headers,
+    );
+  }
+
+  Future<T> post<T>(
+    String path,
+    Object body,
+    T Function(Object?) decode, {
+    CancelToken? cancelToken,
+  }) => _request('POST', path, decode, body: body, cancelToken: cancelToken);
+
+  Future<T> _request<T>(
+    String method,
+    String path,
+    T Function(Object?) decode, {
+    Object? body,
+    CancelToken? cancelToken,
+    Map<String, String>? headers,
   }) async {
     try {
-      final response = await _dio.get<Object?>(path, cancelToken: cancelToken);
+      final response = await _dio.request<Object?>(
+        path,
+        data: body,
+        options: Options(method: method, headers: headers),
+        cancelToken: cancelToken,
+      );
       return decode(response.data);
     } on DioException catch (error) {
       if (CancelToken.isCancel(error)) {
