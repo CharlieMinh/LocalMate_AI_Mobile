@@ -8,6 +8,8 @@ import '../shared/widgets/content_states.dart';
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/auth_pages.dart';
+import '../features/discovery/presentation/discovery_pages.dart';
+import '../features/discovery/presentation/metro_pages.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRouterRefresh();
@@ -38,11 +40,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           for (final destination in Destination.values)
             GoRoute(
               path: destination.path,
-              builder: (_, _) => destination == Destination.account
-                  ? const AuthAccountPage()
-                  : FoundationPage(destination: destination),
+              builder: (_, _) => switch (destination) {
+                Destination.account => const AuthAccountPage(),
+                Destination.home => const DiscoveryHomePage(),
+                Destination.explore => const ExplorePage(),
+                Destination.metro => const MetroPage(),
+                _ => FoundationPage(destination: destination),
+              },
             ),
         ],
+      ),
+      GoRoute(
+        path: '/places/:id',
+        builder: (_, state) => PlaceDetailPage(state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/curated/:id',
+        builder: (_, state) => CuratedDetailPage(state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/stations/:order',
+        builder: (_, state) => StationDetailPage(
+          int.tryParse(state.pathParameters['order']!) ?? -1,
+        ),
       ),
       GoRoute(
         path: '/payment-return',

@@ -1,7 +1,8 @@
 # LocalMate AI Mobile
 
-Android-first Flutter M2 offline authentication candidate on the reviewed M1
-foundation. No live authentication, AI, payment or Trip mutation is authorized.
+Android-first Flutter M3 offline discovery/Metro candidate on the accepted M2
+offline authentication baseline. No live authentication, AI, payment or Trip
+mutation is authorized.
 
 ## Run and verify
 
@@ -33,8 +34,9 @@ it does not authorize Backend access.
 - `lib/core`: transport, typed errors, session ownership/cancellation,
   secure-storage interface and untrusted return hints.
 - `lib/shared`: theme and accessible loading/error/empty widgets.
-- `lib/features/foundation`: local metadata data/application boundaries and
-  five native presentation skeletons, not fake integrated screens.
+- `lib/features/foundation`: local metadata and non-integrated feature skeletons.
+- `lib/features/auth`: offline login, secure session storage and route guards.
+- `lib/features/discovery`: mock Home/Explore/place details and Metro screens.
 - `test`: fail-closed transport, lifecycle/account guards, routing and
   responsive widget regression; secure-storage fake lives only in tests.
 
@@ -45,15 +47,24 @@ SecureSessionStore is a platform adapter with an offline-only namespace.
 
 Brand logo and Be Vietnam Pro fonts were copied from the existing FE repo
 without modifying it. Font OFL license is in assets/fonts/OFL.txt. Only
-valid nonempty logo/font files are bundled; no place photo is invented.
+valid nonempty assets are bundled. Unlicensed place photographs are excluded.
+Place cards use native Material category icons and image-unavailable labels;
+no place image asset or remote image is loaded.
 Theme uses navy #1D3E82, amber #F6A623 and canvas #F4F6FA, Material3.
 
-M1 local baseline: `4cdce4bbea0614a3ce82d10deb9dd6854f5f8f0e` (50 files).
-M2 is uncommitted on `feature/m2-offline-authentication`. No remote, push or PR.
+Public source uses sanitized M1/M2 history. M2 was merged in
+[PR #1](https://github.com/CharlieMinh/LocalMate_AI_Mobile/pull/1).
+M3 branch `feature/m3-discovery-metro` starts at
+main `658b67c16b5dbefa17896c1aec2457e797c3aa4d` and remains mock-only.
 CI workflow runs analyze/test/debug APK with Flutter 3.47.6 and Java 21.0.12.
-Its configuration is checked locally; no remote CI run has occurred.
+The [M2 PR run](https://github.com/CharlieMinh/LocalMate_AI_Mobile/actions/runs/39206577787)
+passed analyze, 79 tests and debug APK build. The separate
+[post-merge main run](https://github.com/CharlieMinh/LocalMate_AI_Mobile/actions/runs/39207473566)
+does not validate the additional M3 source. M3 CI results must be checked on
+the M3 branch/PR, separately from these earlier runs.
 Release signing is deferred to M9 and never substitutes a debug signature.
 
 See docs/INTEGRATION_FEASIBILITY.md. OAuth/App Links are not live verified.
-See docs/M2_OFFLINE_AUTH.md for fixtures and limitations. M0 contract gate stays
-NO; M2_AUTH_VERIFIED stays NO. Stop at WAIT_FOR_M2_OFFLINE_REVIEW, not M3.
+See docs/M2_OFFLINE_AUTH.md and docs/M3_OFFLINE_DISCOVERY.md for fixtures and
+limitations. M0 contract gate stays NO; M2_AUTH_VERIFIED and
+M3_DISCOVERY_VERIFIED stay NO. Live Backend/OAuth/payment are not verified.

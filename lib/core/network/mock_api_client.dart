@@ -68,6 +68,7 @@ class MockApiClient {
     T Function(Object?) decode, {
     CancelToken? cancelToken,
     Map<String, String>? headers,
+    Map<String, Object?>? query,
   }) async {
     return _request(
       'GET',
@@ -75,6 +76,7 @@ class MockApiClient {
       decode,
       cancelToken: cancelToken,
       headers: headers,
+      query: query,
     );
   }
 
@@ -92,11 +94,13 @@ class MockApiClient {
     Object? body,
     CancelToken? cancelToken,
     Map<String, String>? headers,
+    Map<String, Object?>? query,
   }) async {
     try {
       final response = await _dio.request<Object?>(
         path,
         data: body,
+        queryParameters: query,
         options: Options(method: method, headers: headers),
         cancelToken: cancelToken,
       );
