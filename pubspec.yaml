@@ -20,6 +20,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/logo.jpg
+    - assets/data/metro-stations.json
   fonts:
     - family: BeVietnamPro
       fonts:
