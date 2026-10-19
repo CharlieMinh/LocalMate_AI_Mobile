@@ -10,7 +10,7 @@ import 'package:localmate_ai_mobile/shared/widgets/content_states.dart';
 import 'support/fake_session_store.dart';
 
 void main() {
-  testWidgets('bootstrap performs no API calls or secure-storage reads', (
+  testWidgets('offline bootstrap restores storage without live API calls', (
     tester,
   ) async {
     final store = FakeSessionStore();
@@ -31,14 +31,19 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Hôm nay mình đi đâu?'), findsOneWidget);
-    expect(store.reads, 0);
+    expect(store.reads, 1);
     expect(store.writes, 0);
     expect(tester.takeException(), isNull);
   });
   testWidgets('five tabs navigate; Android Back returns non-home tab to Home', (
     tester,
   ) async {
-    await tester.pumpWidget(const ProviderScope(child: LocalMateApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sessionStoreProvider.overrideWithValue(FakeSessionStore())],
+        child: const LocalMateApp(),
+      ),
+    );
     await tester.pumpAndSettle();
     for (final destination in Destination.values) {
       await tester.tap(
@@ -61,7 +66,9 @@ void main() {
   testWidgets(
     'private guard and payment return remain non-authenticated/non-financial',
     (tester) async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(FakeSessionStore())],
+      );
       addTearDown(container.dispose);
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -73,7 +80,7 @@ void main() {
       final router = container.read(routerProvider);
       router.go('/private');
       await tester.pumpAndSettle();
-      expect(find.text(Destination.account.heading), findsOneWidget);
+      expect(find.text('Đăng nhập offline'), findsOneWidget);
       router.go(
         '/payment-return?orderId=11111111-1111-1111-1111-111111111111&flow=single&status=Paid',
       );
@@ -123,7 +130,14 @@ void main() {
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
           addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-          await tester.pumpWidget(const ProviderScope(child: LocalMateApp()));
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                sessionStoreProvider.overrideWithValue(FakeSessionStore()),
+              ],
+              child: const LocalMateApp(),
+            ),
+          );
           await tester.pumpAndSettle();
           for (final destination in Destination.values) {
             await tester.tap(

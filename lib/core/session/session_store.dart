@@ -6,11 +6,11 @@ abstract interface class SessionStore {
   Future<void> clear();
 }
 
-/// Not read by M1 bootstrap. Login/restoration belongs to M2.
+/// Isolated offline namespace: never restore a Backend token as a mock identity.
 class SecureSessionStore implements SessionStore {
   const SecureSessionStore(this._storage);
   final FlutterSecureStorage _storage;
-  static const _key = 'localmate.session.access_token';
+  static const _key = 'localmate.offline.auth.v1';
   @override
   Future<String?> read() => _storage.read(key: _key);
   @override

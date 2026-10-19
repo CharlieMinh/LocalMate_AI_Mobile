@@ -1,7 +1,7 @@
 # LocalMate AI Mobile
 
-Android-first Flutter M1 Foundation candidate. No authentication, AI, payment,
-Trip mutation or live Backend integration is implemented or authorized.
+Android-first Flutter M2 offline authentication candidate on the reviewed M1
+foundation. No live authentication, AI, payment or Trip mutation is authorized.
 
 ## Run and verify
 
@@ -22,8 +22,9 @@ flutter run -d emulator-5554
 Development defaults to mock-only. `--dart-define=APP_ENV=staging` or
 `production` changes only the environment label: no URL or live adapter can
 be enabled in this milestone. Unknown environment names fail explicitly.
-Unmatched mock requests throw typed errors. Bootstrap does not read tokens
-or issue API requests. Debug INTERNET permission is for Flutter tooling;
+Unmatched mock requests throw typed errors. Bootstrap reads only the isolated
+offline secure-storage envelope; restoration uses local fixtures, never HTTP.
+Debug INTERNET permission is for Flutter tooling;
 it does not authorize Backend access.
 
 ## Boundaries
@@ -37,20 +38,22 @@ it does not authorize Backend access.
 - `test`: fail-closed transport, lifecycle/account guards, routing and
   responsive widget regression; secure-storage fake lives only in tests.
 
-Private routes stay closed in M1. No mock logged-in session is established.
+Private routes require an explicitly labelled offline mock session in M2.
 SessionScope invalidates same-owner reauthentication as well as account
 switch/logout/disposal; deferred success and errors are both rejected.
-SecureSessionStore is a platform adapter, unused by bootstrap until M2.
+SecureSessionStore is a platform adapter with an offline-only namespace.
 
 Brand logo and Be Vietnam Pro fonts were copied from the existing FE repo
 without modifying it. Font OFL license is in assets/fonts/OFL.txt. Only
 valid nonempty logo/font files are bundled; no place photo is invented.
 Theme uses navy #1D3E82, amber #F6A623 and canvas #F4F6FA, Material3.
 
-This is a local Git repository on feature/m1-app-foundation with unborn
-HEAD, no commits, no remote, no push or PR. Main remains the planned base
-branch; it cannot point to a commit until separate Git delivery approval.
+M1 local baseline: `4cdce4bbea0614a3ce82d10deb9dd6854f5f8f0e` (50 files).
+M2 is uncommitted on `feature/m2-offline-authentication`. No remote, push or PR.
+CI workflow runs analyze/test/debug APK with Flutter 3.47.6 and Java 21.0.12.
+Its configuration is checked locally; no remote CI run has occurred.
 Release signing is deferred to M9 and never substitutes a debug signature.
 
 See docs/INTEGRATION_FEASIBILITY.md. OAuth/App Links are not live verified.
-M0 contract gate stays NO; stop at WAIT_FOR_M1_REVIEW, not M2.
+See docs/M2_OFFLINE_AUTH.md for fixtures and limitations. M0 contract gate stays
+NO; M2_AUTH_VERIFIED stays NO. Stop at WAIT_FOR_M2_OFFLINE_REVIEW, not M3.

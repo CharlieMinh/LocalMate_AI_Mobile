@@ -6,14 +6,31 @@ import '../features/foundation/domain/destination.dart';
 import '../features/foundation/presentation/foundation_page.dart';
 import '../shared/widgets/content_states.dart';
 import '../core/navigation/payment_return_intent.dart';
+import '../features/auth/application/auth_controller.dart';
+import '../features/auth/presentation/auth_pages.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
+  final refresh = _AuthRouterRefresh();
+  ref.listen(authProvider, (_, _) => refresh.changed());
   final router = GoRouter(
     initialLocation: '/home',
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final authenticated = ref.read(authProvider).authenticated;
+      if (state.uri.path == '/private' && !authenticated) return '/login';
+      if (state.uri.path == '/login' && authenticated) return '/private';
+      return null;
+    },
     routes: [
       GoRoute(path: '/', redirect: (_, _) => '/home'),
-      // M1 never establishes an authenticated session; private routes remain closed.
-      GoRoute(path: '/private', redirect: (_, _) => '/account'),
+      GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+      GoRoute(
+        path: '/private',
+        builder: (_, _) => Scaffold(
+          appBar: AppBar(title: const Text('Phiên tài khoản mẫu')),
+          body: const SafeArea(child: AuthAccountPage()),
+        ),
+      ),
       ShellRoute(
         builder: (context, state, child) =>
             AppShell(path: state.uri.path, child: child),
@@ -21,7 +38,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           for (final destination in Destination.values)
             GoRoute(
               path: destination.path,
-              builder: (_, _) => FoundationPage(destination: destination),
+              builder: (_, _) => destination == Destination.account
+                  ? const AuthAccountPage()
+                  : FoundationPage(destination: destination),
             ),
         ],
       ),
@@ -56,8 +75,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
   );
   ref.onDispose(router.dispose);
+  ref.onDispose(refresh.dispose);
   return router;
 });
+
+class _AuthRouterRefresh extends ChangeNotifier {
+  void changed() => notifyListeners();
+}
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.path, required this.child});
