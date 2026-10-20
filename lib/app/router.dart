@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/foundation/domain/destination.dart';
-import '../features/foundation/presentation/foundation_page.dart';
+import '../features/planner/presentation/planner_page.dart';
 import '../shared/widgets/content_states.dart';
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
@@ -26,6 +26,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', redirect: (_, _) => '/home'),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+      GoRoute(path: '/planner', builder: (_, _) => const PlannerPage()),
+      GoRoute(
+        path: '/planner/preview/:key',
+        builder: (_, state) =>
+            PlannerPreviewPage(localKey: state.pathParameters['key']!),
+      ),
       GoRoute(
         path: '/private',
         builder: (_, _) => Scaffold(
@@ -45,7 +51,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 Destination.home => const DiscoveryHomePage(),
                 Destination.explore => const ExplorePage(),
                 Destination.metro => const MetroPage(),
-                _ => FoundationPage(destination: destination),
+                Destination.trips => const PlannerEntryPage(),
               },
             ),
         ],
@@ -120,6 +126,13 @@ class AppShell extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
+          actions: [
+            IconButton(
+              onPressed: () => context.go('/account'),
+              tooltip: 'Mở tài khoản',
+              icon: const Icon(Icons.account_circle_outlined),
+            ),
+          ],
           title: Row(
             children: [
               Image.asset(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/content_states.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../application/discovery_providers.dart';
 import '../domain/discovery_models.dart';
 import 'discovery_widgets.dart';
@@ -24,9 +25,40 @@ class _MetroPageState extends ConsumerState<MetroPage> {
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       const SizedBox(height: 8),
-      const Text('Bến Thành – Bến xe Suối Tiên'),
-      const Text(
-        '14 ga · Thứ tự theo source Backend. Không có thông tin tàu trực tiếp.',
+      Container(
+        padding: const EdgeInsets.all(16),
+        color: const Color(0xFFE8ECF7),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.tram_outlined, color: Brand.navy),
+                SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'TUYẾN METRO SỐ 1',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Brand.navy,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Bến Thành – Bến xe Suối Tiên',
+              style: TextStyle(fontWeight: FontWeight.w700, color: Brand.ink),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '14 ga · Thứ tự theo source Backend. Không có thông tin tàu trực tiếp.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       ),
       DiscoveryAsync(
         value: ref.watch(stationsProvider),

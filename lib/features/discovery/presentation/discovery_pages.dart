@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/content_states.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../application/discovery_providers.dart';
 import '../domain/discovery_models.dart';
 import 'discovery_widgets.dart';
@@ -20,31 +21,55 @@ class DiscoveryHomePage extends ConsumerWidget {
         ),
       ),
       const SizedBox(height: 16),
-      FilledButton.icon(
+      OutlinedButton.icon(
         onPressed: () => context.go('/explore'),
         icon: const Icon(Icons.search),
-        label: const Text('Mở Khám phá'),
+        label: const Text('Tìm địa điểm quanh ga Metro'),
       ),
       const SizedBox(height: 20),
-      Stack(
-        children: [
-          const PlaceMedia(null, height: 220, category: 'Culture'),
-          Positioned(
-            bottom: 12,
-            left: 12,
-            right: 12,
-            child: ColoredBox(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  'Khám phá quanh ga Metro',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+      Container(
+        padding: const EdgeInsets.all(20),
+        color: Brand.navy,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.tram_outlined, color: Brand.amber, size: 36),
+            const SizedBox(height: 16),
+            const Text(
+              'BẾN THÀNH – SUỐI TIÊN',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            const Text(
+              'Khám phá quanh ga Metro',
+              style: TextStyle(
+                fontSize: 24,
+                height: 1.3,
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Một buổi rảnh. Một hành trình theo gu của bạn.',
+              style: TextStyle(color: Colors.white, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: () => context.push('/planner'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Brand.navy,
+              ),
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Tạo lịch trình mẫu'),
+            ),
+          ],
+        ),
       ),
       const SectionTitle('Điểm dừng gợi ý'),
       DiscoveryAsync(
@@ -60,7 +85,25 @@ class DiscoveryHomePage extends ConsumerWidget {
                   title: 'Chưa có điểm dừng',
                   message: 'Chưa có dữ liệu quanh ga.',
                 )
-              : Column(children: places.take(3).map(PlaceTile.new).toList());
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final place in places.take(3))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            width:
+                                MediaQuery.textScalerOf(context).scale(14) > 20
+                                ? 240
+                                : 164,
+                            child: PlaceTile(place, compact: true),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
         },
       ),
       const SectionTitle('Lịch trình gợi ý'),
