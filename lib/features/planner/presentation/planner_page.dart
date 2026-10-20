@@ -125,6 +125,16 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
 
   Future<void> submit(List<PlannerTag> catalog) async {
     if (stepChanging) return;
+    final catalogState = ref.read(plannerTagsProvider);
+    if (step >= 2 &&
+        (catalogState.isLoading ||
+            (catalogState.hasError && tags.isNotEmpty))) {
+      setState(() {
+        step = 2;
+        localErrors['TagIds'] = 'Sở thích đã chọn chưa thể xác minh. Hãy thử lại hoặc chủ động bỏ lựa chọn.';
+      });
+      return;
+    }
     FocusScope.of(context).unfocus();
     final criteria = PlannerCriteria(
       origin: StationOrigin(origin),
@@ -196,6 +206,23 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     final state = ref.watch(plannerProvider);
     final catalog = ref.watch(plannerTagsProvider);
     final busy = state.phase == PlannerPhase.processing;
+    Widget catalogFailure() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ErrorContent(
+          message: 'Không tải được danh mục mẫu.',
+          onRetry: () {
+            setState(() => localErrors.remove('TagIds'));
+            ref.invalidate(plannerTagsProvider);
+          },
+        ),
+        Text(
+          tags.isEmpty
+              ? 'Bạn có thể bấm ${step == 3 ? 'Xem lịch trình mẫu' : 'Tiếp tục'} mà không chọn sở thích.'
+              : 'Sở thích đã chọn chưa thể xác minh và vẫn được giữ nguyên. Hãy Thử lại hoặc quay lại bước Sở thích để bỏ lựa chọn.',
+        ),
+      ],
+    );
     return PopScope(
       canPop: step == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -421,14 +448,11 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                                 'Danh mục mẫu offline; mã sở thích không phải dữ liệu production.',
                               ),
                               catalog.when(
+                                skipLoadingOnRefresh: false,
                                 loading: () => const LoadingContent(
                                   label: 'Đang tải sở thích mẫu…',
                                 ),
-                                error: (_, _) => ErrorContent(
-                                  message: 'Không tải được danh mục mẫu.',
-                                  onRetry: () =>
-                                      ref.invalidate(plannerTagsProvider),
-                                ),
+                                error: (_, _) => catalogFailure(),
                                 data: (items) => items.isEmpty
                                     ? const EmptyContent(
                                         title: 'Chưa có sở thích mẫu',
@@ -461,16 +485,22 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                                         ],
                                       ),
                               ),
-                              if (catalog.hasValue)
+                              if (catalog.hasError || catalog.hasValue)
                                 for (final id in tags.where(
                                   (id) =>
+                                      catalog.hasError ||
                                       !(catalog.asData?.value ?? <PlannerTag>[])
                                           .any((tag) => tag.id == id),
                                 ))
                                   InputChip(
-                                    label: const Text(
-                                      'Sở thích cần sửa: không còn trong danh mục mẫu',
+                                    key: ValueKey(id),
+                                    label: Text(
+                                      catalog.hasError
+                                          ? 'Sở thích đã chọn chưa thể xác minh'
+                                          : 'Sở thích cần sửa: không còn trong danh mục mẫu',
                                     ),
+                                    deleteButtonTooltipMessage:
+                                        'Bỏ lựa chọn này',
                                     onDeleted: busy
                                         ? null
                                         : () => setState(() => tags.remove(id)),
@@ -485,6 +515,7 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                               const SizedBox(height: 16),
                             ],
                             if (step == 3) ...[
+                              if (catalog.hasError) catalogFailure(),
                               TextField(
                                 controller: note,
                                 enabled: !busy,
@@ -559,7 +590,8 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                     onPressed:
                         busy ||
                             (step >= 2 &&
-                                (catalog.isLoading || catalog.hasError))
+                                (catalog.isLoading ||
+                                    (catalog.hasError && tags.isNotEmpty)))
                         ? null
                         : () => submit(catalog.asData?.value ?? []),
                     icon: Icon(

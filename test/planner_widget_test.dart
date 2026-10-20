@@ -223,6 +223,121 @@ void main() {
       expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
     },
   );
+  testWidgets(
+    'catalog failure permits empty interests without automatic retry',
+    (tester) async {
+      var attempts = 0;
+      final repo = CatalogRepository(() async {
+        attempts++;
+        throw StateError('catalog unavailable');
+      });
+      final container = await boot(tester, repository: repo);
+      await toStep(tester, 2);
+      expect(find.text('Không tải được danh mục mẫu.'), findsOneWidget);
+      expect(
+        find.textContaining('Tiếp tục mà không chọn sở thích'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Thử lại'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tiếp tục'))
+            .onPressed,
+        isNotNull,
+      );
+      await submit(tester);
+      expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+      expect(container.read(plannerProvider).preview!.criteria.tagIds, isEmpty);
+      expect(attempts, 1);
+    },
+  );
+  for (final failureStep in [2, 3]) {
+    testWidgets(
+      'selected interests fail closed at step $failureStep until retry validates',
+      (tester) async {
+        const tag = PlannerTag(
+          'a1000000-0000-4000-8000-000000000001',
+          'Văn hóa',
+        );
+        var attempts = 0;
+        final retryCatalog = Completer<List<PlannerTag>>();
+        final repo = CatalogRepository(() async {
+          attempts++;
+          if (attempts == 2) throw StateError('refresh unavailable');
+          if (attempts == 3) return retryCatalog.future;
+          return [tag];
+        });
+        final container = await boot(tester, repository: repo);
+        await toStep(tester, 2);
+        await tester.tap(find.widgetWithText(FilterChip, 'Văn hóa'));
+        await toStep(tester, failureStep);
+        container.invalidate(plannerTagsProvider);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('chưa thể xác minh'), findsWidgets);
+        final action = find.widgetWithText(
+          FilledButton,
+          failureStep == 2 ? 'Tiếp tục' : 'Xem lịch trình mẫu',
+        );
+        expect(tester.widget<FilledButton>(action).onPressed, isNull);
+        expect(container.read(plannerProvider).preview, isNull);
+        expect(attempts, 2);
+        final retry = find.widgetWithText(FilledButton, 'Thử lại');
+        await tester.ensureVisible(retry);
+        await tester.tap(retry);
+        await tester.pump();
+        expect(attempts, 3);
+        expect(container.read(plannerTagsProvider).isLoading, isTrue);
+        expect(tester.widget<FilledButton>(action).onPressed, isNull);
+        retryCatalog.complete([tag]);
+        await tester.pumpAndSettle();
+        if (failureStep == 2) {
+          expect(
+            tester
+                .widget<FilterChip>(find.widgetWithText(FilterChip, 'Văn hóa'))
+                .selected,
+            isTrue,
+          );
+        }
+        await submit(tester);
+        expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+        expect(container.read(plannerProvider).preview!.criteria.tagIds, [
+          tag.id,
+        ]);
+      },
+    );
+  }
+  testWidgets(
+    'failed catalog retains selection until explicit removal permits skip',
+    (tester) async {
+      const tag = PlannerTag('a1000000-0000-4000-8000-000000000001', 'Văn hóa');
+      var fail = false;
+      final repo = CatalogRepository(() async {
+        if (fail) throw StateError('catalog unavailable');
+        return [tag];
+      });
+      final container = await boot(tester, repository: repo);
+      await toStep(tester, 2);
+      await tester.tap(find.widgetWithText(FilterChip, 'Văn hóa'));
+      fail = true;
+      container.invalidate(plannerTagsProvider);
+      await tester.pumpAndSettle();
+      final chip = find.byKey(ValueKey(tag.id));
+      expect(chip, findsOneWidget);
+      expect(tester.widget<InputChip>(chip).onDeleted, isNotNull);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tiếp tục'))
+            .onPressed,
+        isNull,
+      );
+      tester.widget<InputChip>(chip).onDeleted!();
+      await tester.pumpAndSettle();
+      expect(chip, findsNothing);
+      await submit(tester);
+      expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+      expect(container.read(plannerProvider).preview!.criteria.tagIds, isEmpty);
+    },
+  );
   testWidgets('preview error retry retains form, no automatic request retry', (
     tester,
   ) async {
