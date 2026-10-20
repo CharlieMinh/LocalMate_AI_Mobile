@@ -124,13 +124,14 @@ abstract final class Brand {
           ? Colors.white
           : navy,
     ),
-    backgroundColor: WidgetStateProperty.resolveWith(
-      (states) => states.contains(WidgetState.disabled)
+    backgroundColor: WidgetStateProperty.resolveWith((states) {
+      if (!filled && !outlined) return Colors.transparent;
+      return states.contains(WidgetState.disabled)
           ? canvas
           : filled
           ? navy
-          : surface,
-    ),
+          : surface;
+    }),
     overlayColor: WidgetStateProperty.resolveWith(interactionOverlay),
     side: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.disabled)) {

@@ -7,6 +7,148 @@ import 'package:localmate_ai_mobile/shared/widgets/feedback_banner.dart';
 
 void main() {
   for (final kind in FeedbackBannerKind.values) {
+    testWidgets(
+      '$kind action inherits transparent Material and semantic foreground',
+      (tester) async {
+        final (surface, foreground) = switch (kind) {
+          FeedbackBannerKind.info => (Brand.infoSurface, Brand.navy),
+          FeedbackBannerKind.warning => (
+            Brand.warningSurface,
+            Brand.warningText,
+          ),
+          FeedbackBannerKind.success => (
+            Brand.successSurface,
+            Brand.successText,
+          ),
+          FeedbackBannerKind.error => (Brand.errorSurface, Brand.errorText),
+        };
+        var calls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: Brand.theme,
+            home: Scaffold(
+              body: FeedbackBanner(
+                kind: kind,
+                message: 'Dữ liệu mẫu',
+                actionLabel: 'Thử lại',
+                onAction: () => calls++,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final button = find.byType(TextButton);
+        final material = tester.widget<Material>(
+          find.descendant(of: button, matching: find.byType(Material)).first,
+        );
+        final decoration =
+            tester
+                    .widget<DecoratedBox>(
+                      find
+                          .descendant(
+                            of: find.byType(FeedbackBanner),
+                            matching: find.byType(DecoratedBox),
+                          )
+                          .first,
+                    )
+                    .decoration
+                as BoxDecoration;
+        expect(decoration.color, surface);
+        expect(material.color, Colors.transparent);
+        expect(Color.alphaBlend(material.color!, surface), surface);
+        expect(
+          DefaultTextStyle.of(tester.element(find.text('Thử lại'))).style.color,
+          foreground,
+        );
+        expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+        expect(calls, 0);
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        expect(calls, 1);
+        await tester.pump();
+        expect(calls, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'mounted text button keeps transparent base while state overlays remain',
+    (tester) async {
+      final states = WidgetStatesController();
+      addTearDown(states.dispose);
+      var calls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: Brand.theme,
+          home: Scaffold(
+            body: ColoredBox(
+              color: Brand.warningSurface,
+              child: Column(
+                children: [
+                  TextButton(
+                    key: const ValueKey('enabled-text-action'),
+                    statesController: states,
+                    onPressed: () => calls++,
+                    child: const Text('Thực hiện'),
+                  ),
+                  const TextButton(
+                    key: ValueKey('disabled-text-action'),
+                    onPressed: null,
+                    child: Text('Chưa khả dụng'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      for (final state in [
+        WidgetState.focused,
+        WidgetState.hovered,
+        WidgetState.pressed,
+      ]) {
+        states.update(state, true);
+        await tester.pumpAndSettle();
+        final button = find.byKey(const ValueKey('enabled-text-action'));
+        expect(
+          tester
+              .widget<Material>(
+                find
+                    .descendant(of: button, matching: find.byType(Material))
+                    .first,
+              )
+              .color,
+          Colors.transparent,
+        );
+        final ink = tester.widget<InkWell>(
+          find.descendant(of: button, matching: find.byType(InkWell)).first,
+        );
+        expect(ink.overlayColor!.resolve({state})!.a, greaterThan(0));
+        expect(calls, 0);
+        states.update(state, false);
+      }
+      final disabled = find.byKey(const ValueKey('disabled-text-action'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Material>(
+              find
+                  .descendant(of: disabled, matching: find.byType(Material))
+                  .first,
+            )
+            .color,
+        Colors.transparent,
+      );
+      expect(tester.getSize(disabled).height, greaterThanOrEqualTo(48));
+      await tester.tap(disabled);
+      expect(calls, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final kind in FeedbackBannerKind.values) {
     testWidgets('$kind is readable semantic feedback with manual action only', (
       tester,
     ) async {

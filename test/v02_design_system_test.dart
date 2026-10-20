@@ -97,16 +97,53 @@ void main() {
       );
       expect(
         style.backgroundColor!.resolve({WidgetState.disabled}),
-        Brand.canvas,
+        identical(style, theme.textButtonTheme.style)
+            ? Colors.transparent
+            : Brand.canvas,
       );
       expect(style.overlayColor!.resolve({WidgetState.disabled}), isNull);
       expect(style.overlayColor!.resolve({WidgetState.focused}), isNotNull);
+      expect(style.overlayColor!.resolve({WidgetState.hovered}), isNotNull);
       expect(style.overlayColor!.resolve({WidgetState.pressed}), isNotNull);
     }
     expect(
       theme.outlinedButtonTheme.style!.side!.resolve({})!.color,
       Brand.secondaryBorder,
     );
+  });
+
+  test('text button base stays transparent across interaction states', () {
+    final style = Brand.theme.textButtonTheme.style!;
+    for (final states in <Set<WidgetState>>[
+      {},
+      {WidgetState.disabled},
+      {WidgetState.focused},
+      {WidgetState.hovered},
+      {WidgetState.pressed},
+    ]) {
+      expect(style.backgroundColor!.resolve(states), Colors.transparent);
+    }
+  });
+
+  test('filled and outlined background policies remain unchanged', () {
+    final theme = Brand.theme;
+    expect(
+      theme.filledButtonTheme.style!.backgroundColor!.resolve({}),
+      Brand.navy,
+    );
+    expect(
+      theme.outlinedButtonTheme.style!.backgroundColor!.resolve({}),
+      Brand.surface,
+    );
+    for (final style in [
+      theme.filledButtonTheme.style!,
+      theme.outlinedButtonTheme.style!,
+    ]) {
+      expect(
+        style.backgroundColor!.resolve({WidgetState.disabled}),
+        Brand.canvas,
+      );
+    }
   });
 
   test('chips distinguish selected focused and disabled states', () {
