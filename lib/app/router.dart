@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../features/foundation/domain/destination.dart';
 import '../features/planner/presentation/planner_page.dart';
 import '../shared/widgets/content_states.dart';
+import '../shared/widgets/brand_header.dart';
+import '../shared/theme/layout_tokens.dart';
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/auth_pages.dart';
@@ -115,7 +117,8 @@ class AppShell extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) {
-    final largeText = MediaQuery.textScalerOf(context).scale(12) > 15.6;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final largeText = LayoutTokens.usesLargeText(textScaler);
     final index = Destination.values.indexWhere(
       (destination) => destination.path == path,
     );
@@ -125,37 +128,23 @@ class AppShell extends StatelessWidget {
         if (!didPop && index != 0) context.go('/home');
       },
       child: Scaffold(
-        appBar: AppBar(
-          actions: [
-            IconButton(
-              onPressed: () => context.go('/account'),
-              tooltip: 'Mở tài khoản',
-              icon: const Icon(Icons.account_circle_outlined),
-            ),
-          ],
-          title: Row(
-            children: [
-              Image.asset(
-                'assets/brand/logo.jpg',
-                width: 36,
-                height: 36,
-                semanticLabel: 'Logo LocalMate AI',
-              ),
-              const SizedBox(width: 8),
-              const Flexible(
-                child: Text('LocalMate AI', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-        ),
+        appBar: BrandHeader(onAccount: () => context.go('/account')),
         body: SafeArea(top: false, bottom: false, child: child),
         bottomNavigationBar: SafeArea(
           top: false,
           child: NavigationBar(
-            height: largeText ? 112 : 80,
+            height: LayoutTokens.navigationHeightFor(textScaler),
             labelTextStyle: largeText
-                ? const WidgetStatePropertyAll(
-                    TextStyle(fontSize: 11, height: 1.2),
+                ? WidgetStateProperty.resolveWith(
+                    (states) =>
+                        (Theme.of(context).navigationBarTheme.labelTextStyle
+                                    ?.resolve(states) ??
+                                const TextStyle())
+                            .copyWith(
+                              fontSize: 11,
+                              height: 1.2,
+                              letterSpacing: 0,
+                            ),
                   )
                 : null,
             selectedIndex: index < 0 ? 0 : index,
