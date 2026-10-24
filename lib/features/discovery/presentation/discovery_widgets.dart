@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_failure.dart';
+import '../../../shared/formatters.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/content_states.dart';
+import '../../../shared/widgets/feedback_banner.dart';
 import '../domain/discovery_models.dart';
 
 class OfflineNotice extends StatelessWidget {
@@ -155,82 +157,183 @@ String categoryLabel(String category) => switch (category) {
 };
 String? costLabel(Place p) => p.costMin == null || p.costMax == null
     ? null
-    : '${p.costMin!.toStringAsFixed(0)} – ${p.costMax!.toStringAsFixed(0)} đ (ước tính mẫu)';
+    : '${formatVnd(p.costMin!)} – ${formatVnd(p.costMax!)} đ (ước tính mẫu)';
 
 class PlaceTile extends StatelessWidget {
   const PlaceTile(this.place, {super.key, this.compact = false});
   final Place place;
   final bool compact;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFDCE2ED)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/places/${Uri.encodeComponent(place.id)}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            PlaceMedia(
-              place.imageUrl,
-              height: compact ? 106 : 160,
-              category: place.category,
+  Widget build(BuildContext context) => compact
+      ? _compact(context)
+      : Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: Color(0xFFDCE2ED)),
             ),
-            Padding(
-              padding: EdgeInsets.all(compact ? 12 : 16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () =>
+                  context.push('/places/${Uri.encodeComponent(place.id)}'),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!compact)
-                    Text(
-                      categoryLabel(place.category),
-                      style: const TextStyle(
-                        color: Brand.navy,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  const SizedBox(height: 6),
-                  Text(
-                    place.name,
-                    style: compact
-                        ? const TextStyle(
-                            fontSize: 12,
-                            height: 1.4,
-                            color: Brand.ink,
-                            fontWeight: FontWeight.w700,
-                          )
-                        : Theme.of(context).textTheme.titleLarge,
+                  PlaceMedia(
+                    place.imageUrl,
+                    height: compact ? 106 : 160,
+                    category: place.category,
                   ),
-                  const SizedBox(height: 8),
-                  if (compact)
-                    Text(
-                      categoryLabel(place.category),
-                      style: const TextStyle(fontSize: 11),
+                  Padding(
+                    padding: EdgeInsets.all(compact ? 12 : 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!compact)
+                          Text(
+                            categoryLabel(place.category),
+                            style: const TextStyle(
+                              color: Brand.navy,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        Text(
+                          place.name,
+                          style: compact
+                              ? const TextStyle(
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  color: Brand.ink,
+                                  fontWeight: FontWeight.w700,
+                                )
+                              : Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        if (compact)
+                          Text(
+                            categoryLabel(place.category),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        if (!compact) Text(place.address),
+                        if (place.stationName != null)
+                          Text(
+                            'Ga ${place.stationName}',
+                            style: compact
+                                ? const TextStyle(
+                                    fontSize: 11,
+                                    color: Brand.navy,
+                                  )
+                                : null,
+                          ),
+                        if (!compact && costLabel(place) != null)
+                          Text(costLabel(place)!),
+                      ],
                     ),
-                  if (!compact) Text(place.address),
-                  if (place.stationName != null)
-                    Text(
-                      'Ga ${place.stationName}',
-                      style: compact
-                          ? const TextStyle(fontSize: 11, color: Brand.navy)
-                          : null,
-                    ),
-                  if (!compact && costLabel(place) != null)
-                    Text(costLabel(place)!),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        );
+
+  Widget _compact(BuildContext context) => Card(
+    key: ValueKey('place-card-${place.id}'),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: () => context.push('/places/${Uri.encodeComponent(place.id)}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PlaceMedia(place.imageUrl, height: 108, category: place.category),
+          Padding(
+            padding: const EdgeInsets.all(11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        MediaQuery.textScalerOf(context).scale(12) *
+                        19 /
+                        12 *
+                        2,
+                  ),
+                  child: Text(
+                    place.name,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 19 / 12,
+                      fontWeight: FontWeight.w700,
+                      color: Brand.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  categoryLabel(place.category),
+                  style: BrandTypography.metadata,
+                ),
+                if (place.stationName != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(
+                          Icons.train_outlined,
+                          size: 14,
+                          color: Brand.navy,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          'Ga ${place.stationName}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            height: 18 / 11,
+                            fontWeight: FontWeight.w600,
+                            color: Brand.navy,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     ),
+  );
+}
+
+/// Two columns with intrinsic row heights so large text never clips a card.
+class PlaceGrid extends StatelessWidget {
+  const PlaceGrid(this.places, {super.key});
+  final List<Place> places;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = 12.0;
+      final width = (constraints.maxWidth - gap) / 2;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          for (final place in places)
+            SizedBox(width: width, child: PlaceTile(place, compact: true)),
+        ],
+      );
+    },
   );
 }
 
@@ -280,28 +383,67 @@ class MapsPreviewButton extends StatelessWidget {
         ? null
         : () => showModalBottomSheet<void>(
             context: context,
+            useRootNavigator: true,
             isScrollControlled: true,
+            useSafeArea: true,
+            showDragHandle: true,
+            backgroundColor: Brand.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
             builder: (context) => SafeArea(
+              top: false,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  0,
+                  20,
+                  20 + MediaQuery.viewInsetsOf(context).bottom,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Liên kết chỉ đường',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Chỉ đường Google Maps',
+                            style: BrandTypography.sectionTitle,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Đóng',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, size: 20),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     const Text(
                       'Bản offline chỉ xem URL, không mở Google Maps.',
+                      style: BrandTypography.body,
                     ),
                     const SizedBox(height: 12),
-                    SelectableText(uri.toString()),
-                    const SizedBox(height: 16),
-                    TextButton(
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Brand.canvas,
+                        border: Border.all(color: Brand.line),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: SelectableText(
+                          uri.toString(),
+                          style: BrandTypography.metadata,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Đóng'),
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Đóng'),
                     ),
                   ],
                 ),
@@ -316,44 +458,135 @@ class ScheduleView extends StatelessWidget {
   final MetroSchedule schedule;
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        schedule.estimated
+      FeedbackBanner(
+        kind: schedule.withinPeriod
+            ? FeedbackBannerKind.info
+            : FeedbackBannerKind.warning,
+        title: schedule.estimated
             ? 'Lịch tàu ước tính · Không phải trực tiếp'
             : 'Lịch mẫu · Không phải trực tiếp',
-        style: const TextStyle(fontWeight: FontWeight.w600, color: Brand.navy),
+        message: !schedule.withinPeriod
+            ? 'Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'
+            : schedule.precision == 'Headway'
+            ? 'Giãn cách là khoảng thời gian giữa các chuyến, không phải giờ tàu xuất bến chính xác.'
+            : schedule.showExact
+            ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
+            : 'Chưa đủ dữ liệu để xác định thời gian tàu chạy.',
       ),
-      Text('Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)'),
-      Text('Độ chính xác: ${schedule.precision}'),
+      const SizedBox(height: 12),
       Text(
-        'Hiệu lực: ${schedule.effectiveFrom} – ${schedule.effectiveTo ?? 'chưa có ngày kết thúc'}',
+        'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)',
+        style: BrandTypography.metadata,
       ),
-      if (!schedule.withinPeriod)
-        const Text('Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'),
-      if (schedule.notice != null) Text(schedule.notice!),
-      for (final direction in schedule.directions) ...[
-        const SizedBox(height: 12),
-        Text(
-          'Hướng ${direction.toward}',
-          style: const TextStyle(fontWeight: FontWeight.w600),
+      for (final direction in schedule.directions)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Brand.surface,
+              border: Border.all(color: Brand.line),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.train_outlined,
+                        size: 20,
+                        color: Brand.navy,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Hướng ${direction.toward}',
+                          style: BrandTypography.choice.copyWith(
+                            fontSize: 14,
+                            color: Brand.navy,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24, color: Brand.line),
+                  if (schedule.showExact)
+                    Text(
+                      direction.departures.isEmpty
+                          ? 'Chưa có chuyến.'
+                          : direction.departures
+                                .map((t) => t.substring(0, 5))
+                                .join(' · '),
+                      style: BrandTypography.body,
+                    )
+                  else if (schedule.precision == 'Headway' &&
+                      schedule.withinPeriod) ...[
+                    if (direction.headways.isEmpty)
+                      const Text(
+                        'Chưa có thông tin giãn cách trong bộ mẫu này.',
+                        style: BrandTypography.body,
+                      ),
+                    for (final h in direction.headways)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          '${h.from.substring(0, 5)}–${h.to.substring(0, 5)}: khoảng ${h.minutes} phút/chuyến',
+                          style: BrandTypography.body.copyWith(fontSize: 14),
+                        ),
+                      ),
+                  ] else
+                    const Text(
+                      'Chưa đủ dữ liệu lịch tàu để hiển thị.',
+                      style: BrandTypography.body,
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
-        if (schedule.showExact)
-          Text(
-            direction.departures.isEmpty
-                ? 'Chưa có chuyến.'
-                : direction.departures
-                      .map((t) => t.substring(0, 5))
-                      .join(' · '),
-          )
-        else if (schedule.precision == 'Headway' && schedule.withinPeriod)
-          for (final h in direction.headways)
-            Text(
-              '${h.from.substring(0, 5)}–${h.to.substring(0, 5)}: khoảng ${h.minutes} phút/chuyến',
-            )
-        else
-          const Text('Chưa đủ dữ liệu lịch tàu để hiển thị.'),
-      ],
+      ExpansionTile(
+        backgroundColor: Brand.canvas,
+        collapsedBackgroundColor: Brand.canvas,
+        textColor: Brand.ink,
+        collapsedTextColor: Brand.ink,
+        iconColor: Brand.navy,
+        collapsedIconColor: Brand.navy,
+        tilePadding: EdgeInsets.zero,
+        title: const Text(
+          'Thông tin bộ dữ liệu',
+          style: BrandTypography.choice,
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Độ chính xác: ${schedule.precision}',
+                    style: BrandTypography.metadata,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hiệu lực: ${schedule.effectiveFrom} – ${schedule.effectiveTo ?? 'chưa có ngày kết thúc'}',
+                    style: BrandTypography.metadata,
+                  ),
+                  if (schedule.notice != null) ...[
+                    const SizedBox(height: 8),
+                    Text(schedule.notice!, style: BrandTypography.metadata),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     ],
   );
 }
