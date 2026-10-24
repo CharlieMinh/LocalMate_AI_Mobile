@@ -196,6 +196,7 @@ void main() {
       expect(find.text('Bến Thành → Nhà hát Thành phố'), findsOneWidget);
       expect(find.textContaining('khoảng 8 phút/chuyến'), findsOneWidget);
       expect(find.text('08:00 → 08:02 (lịch mẫu)'), findsNothing);
+      await tapVisible(tester, find.text('Các ga'));
       await tapVisible(tester, find.text('Ba Son'));
       expect(find.text('Ga Ba Son'), findsOneWidget);
       expect(find.text('Hướng Bến Thành'), findsOneWidget);

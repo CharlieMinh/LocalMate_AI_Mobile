@@ -78,9 +78,12 @@ void main() {
         find.textContaining('không phải danh tính đã xác thực'),
         findsOneWidget,
       );
+      await tester.scrollUntilVisible(find.text('Đăng xuất'), 250);
+      await tester.ensureVisible(find.text('Đăng xuất'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Đăng xuất'));
       await tester.pumpAndSettle();
-      expect(find.text('Đăng nhập offline'), findsOneWidget);
+      expect(find.byKey(const Key('login-email')), findsOneWidget);
       expect(container.read(authProvider).authenticated, isFalse);
       expect(find.text('Du khách mẫu'), findsNothing);
       await closeApp(tester, container);
@@ -121,7 +124,7 @@ void main() {
       container.read(routerProvider).go('/metro');
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
-      expect(find.text('Dọc tuyến Metro số 1'), findsOneWidget);
+      expect(find.text('Ga Metro'), findsOneWidget);
       expect(container.read(authProvider).authenticated, isFalse);
       await closeApp(tester, container);
     },
@@ -132,7 +135,7 @@ void main() {
     final container = await openLogin(tester);
     container.read(routerProvider).go('/private');
     await tester.pumpAndSettle();
-    expect(find.text('Đăng nhập offline'), findsOneWidget);
+    expect(find.byKey(const Key('login-email')), findsOneWidget);
     expect(find.text('Phiên tài khoản mẫu'), findsNothing);
     await closeApp(tester, container);
   });

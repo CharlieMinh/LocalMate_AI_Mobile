@@ -130,7 +130,7 @@ void main() {
       expect(find.text('Bắt đầu từ đâu?'), findsOneWidget);
       expect(find.textContaining('CHẾ ĐỘ OFFLINE'), findsOneWidget);
       await submit(tester);
-      expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+      expect(find.text('Bản mẫu offline'), findsOneWidget);
       expect(container.read(plannerProvider).preview!.criteria.tagIds, isEmpty);
       expect(
         GoRouterState.of(tester.element(find.byType(PlannerPreviewPage)))
@@ -147,7 +147,7 @@ void main() {
         await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
       }
-      expect(find.text('Hành trình của bạn'), findsOneWidget);
+      expect(find.text('Lịch trình cá nhân'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Hôm nay mình đi đâu?'), findsOneWidget);
@@ -166,7 +166,7 @@ void main() {
       await tester.ensureVisible(field('Ngày đi'));
       expect(find.textContaining('Ngày đi từ hôm nay'), findsOneWidget);
       expect(find.text('Ngân sách không được âm.'), findsOneWidget);
-      expect(find.text('Bản xem trước tạm thời'), findsNothing);
+      expect(find.text('Bản mẫu offline'), findsNothing);
     },
   );
   testWidgets(
@@ -174,8 +174,8 @@ void main() {
     (tester) async {
       final container = await boot(tester);
       await toStep(tester, 2);
-      await tester.ensureVisible(find.widgetWithText(FilterChip, 'Văn hóa'));
-      await tester.tap(find.widgetWithText(FilterChip, 'Văn hóa'));
+      await tester.ensureVisible(find.text('Văn hóa'));
+      await tester.tap(find.text('Văn hóa'));
       await toStep(tester, 3);
       await tester.ensureVisible(field('Ghi chú'));
       await tester.enterText(field('Ghi chú'), '  yêu  văn hóa  ');
@@ -198,7 +198,7 @@ void main() {
     await submit(tester);
     expect(find.textContaining('23:30 → 03:30 (ngày hôm sau)'), findsOneWidget);
     expect(find.text('01:30 (ngày hôm sau) · mốc minh họa'), findsOneWidget);
-    expect(find.textContaining('250000 VND / người'), findsOneWidget);
+    expect(find.textContaining('250.000 VND / người'), findsOneWidget);
   });
   testWidgets(
     'catalog loading, failure, manual retry and empty catalog distinguished',
@@ -220,7 +220,7 @@ void main() {
       expect(find.text('Chưa có sở thích mẫu'), findsOneWidget);
       expect(attempts, 2);
       await submit(tester);
-      expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+      expect(find.text('Bản mẫu offline'), findsOneWidget);
     },
   );
   testWidgets(
@@ -246,7 +246,7 @@ void main() {
         isNotNull,
       );
       await submit(tester);
-      expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+      expect(find.text('Bản mẫu offline'), findsOneWidget);
       expect(container.read(plannerProvider).preview!.criteria.tagIds, isEmpty);
       expect(attempts, 1);
     },
@@ -269,7 +269,7 @@ void main() {
         });
         final container = await boot(tester, repository: repo);
         await toStep(tester, 2);
-        await tester.tap(find.widgetWithText(FilterChip, 'Văn hóa'));
+        await tester.tap(find.text('Văn hóa'));
         await toStep(tester, failureStep);
         container.invalidate(plannerTagsProvider);
         await tester.pumpAndSettle();
@@ -293,13 +293,16 @@ void main() {
         if (failureStep == 2) {
           expect(
             tester
-                .widget<FilterChip>(find.widgetWithText(FilterChip, 'Văn hóa'))
+                .widget<Semantics>(
+                  find.byKey(const ValueKey('planner-choice-Văn hóa')),
+                )
+                .properties
                 .selected,
             isTrue,
           );
         }
         await submit(tester);
-        expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+        expect(find.text('Bản mẫu offline'), findsOneWidget);
         expect(container.read(plannerProvider).preview!.criteria.tagIds, [
           tag.id,
         ]);
@@ -317,7 +320,7 @@ void main() {
       });
       final container = await boot(tester, repository: repo);
       await toStep(tester, 2);
-      await tester.tap(find.widgetWithText(FilterChip, 'Văn hóa'));
+      await tester.tap(find.text('Văn hóa'));
       fail = true;
       container.invalidate(plannerTagsProvider);
       await tester.pumpAndSettle();
@@ -334,7 +337,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(chip, findsNothing);
       await submit(tester);
-      expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+      expect(find.text('Bản mẫu offline'), findsOneWidget);
       expect(container.read(plannerProvider).preview!.criteria.tagIds, isEmpty);
     },
   );
@@ -349,7 +352,7 @@ void main() {
     await tester.ensureVisible(find.text('Thử lại'));
     await tester.tap(find.text('Thử lại'));
     await tester.pumpAndSettle();
-    expect(find.text('Bản xem trước tạm thời'), findsOneWidget);
+    expect(find.text('Bản mẫu offline'), findsOneWidget);
   });
   testWidgets('auth transition immediately hides old preview and form values', (
     tester,
@@ -359,7 +362,7 @@ void main() {
     (container.read(authProvider.notifier) as ControlledAuth).transition();
     await tester.pumpAndSettle();
     expect(find.text('Bản mẫu không còn khả dụng'), findsOneWidget);
-    expect(find.text('Bản xem trước tạm thời'), findsNothing);
+    expect(find.text('Bản mẫu offline'), findsNothing);
   });
   testWidgets('background invalidates preview; foreground never replays', (
     tester,
@@ -400,6 +403,7 @@ void main() {
       await tester.tap(button);
       await tester.pump();
       expect(repo.calls, 1);
+      expect(find.text('Đang chuẩn bị hành trình'), findsOneWidget);
       expect(
         tester
             .widget<FilledButton>(
@@ -415,7 +419,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Hôm nay mình đi đâu?'), findsOneWidget);
-      expect(find.text('Bản xem trước tạm thời'), findsNothing);
+      expect(find.text('Bản mẫu offline'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -470,6 +474,11 @@ void main() {
     await tester.tap(find.byTooltip('Chọn ngày'));
     await tester.pumpAndSettle();
     expect(find.byType(DatePickerDialog), findsOneWidget);
+    expect(
+      Localizations.localeOf(tester.element(find.byType(DatePickerDialog)))
+          .languageCode,
+      'vi',
+    );
     await tester.tap(find.text('Chọn'));
     await tester.pumpAndSettle();
     expect(
@@ -511,7 +520,7 @@ void main() {
     (tester) async {
       final container = await boot(tester);
       await toStep(tester, 1);
-      final preset = find.widgetWithText(ChoiceChip, '8 giờ');
+      final preset = find.text('Cả ngày · 8 giờ');
       await tester.ensureVisible(preset);
       await tester.pumpAndSettle();
       await tester.tap(preset);
@@ -532,6 +541,30 @@ void main() {
       expect(find.text('Lịch trình theo giờ'), findsOneWidget);
     },
   );
+  testWidgets(
+    'travel cards retain mode and preview formats Vietnamese values',
+    (tester) async {
+      final container = await boot(tester);
+      await toStep(tester, 1);
+      await tester.ensureVisible(field('Ngân sách'));
+      await tester.enterText(field('Ngân sách'), '300000');
+      await toStep(tester, 3);
+      final metro = find.byKey(const ValueKey('planner-choice-Metro'));
+      await tester.ensureVisible(metro);
+      await tester.pumpAndSettle();
+      await tester.tap(metro);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Semantics>(metro).properties.selected, isTrue);
+      await submit(tester);
+      expect(
+        container.read(plannerProvider).preview!.criteria.travelMode,
+        PlannerTravelMode.metro,
+      );
+      expect(find.textContaining('300.000 VND / người'), findsOneWidget);
+      expect(find.textContaining('19/10/2026'), findsOneWidget);
+    },
+  );
+
   for (final width in [320.0, 390.0, 768.0]) {
     for (final scale in [1.0, 2.0]) {
       testWidgets('planner and preview width=$width text=$scale', (

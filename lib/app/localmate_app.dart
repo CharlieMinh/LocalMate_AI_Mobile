@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../shared/theme/app_theme.dart';
@@ -39,6 +40,9 @@ class _LocalMateAppState extends ConsumerState<LocalMateApp>
     return MaterialApp.router(
       title: 'LocalMate AI',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('vi'),
+      supportedLocales: const [Locale('vi')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: Brand.theme,
       routerConfig: ref.watch(routerProvider),
     );

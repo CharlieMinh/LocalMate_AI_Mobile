@@ -174,7 +174,7 @@ void main() {
       addTearDown(container.dispose);
       container.read(routerProvider).go('/private');
       await tester.pumpAndSettle();
-      expect(find.text('Đăng nhập offline'), findsOneWidget);
+      expect(find.byKey(const Key('login-email')), findsOneWidget);
       expect(find.byKey(const Key('login-email')), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
     },

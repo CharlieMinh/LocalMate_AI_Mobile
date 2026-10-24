@@ -128,7 +128,30 @@ class AppShell extends StatelessWidget {
         if (!didPop && index != 0) context.go('/home');
       },
       child: Scaffold(
-        appBar: BrandHeader(onAccount: () => context.go('/account')),
+        appBar: index <= 0
+            ? BrandHeader(onAccount: () => context.go('/account'))
+            : AppBar(
+                title: Text(switch (Destination.values[index]) {
+                  Destination.metro => 'Ga Metro',
+                  Destination.trips => 'Lịch trình cá nhân',
+                  _ => Destination.values[index].label,
+                }),
+                actions: [
+                  if (path == '/trips' || path == '/explore')
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: IconButton.filledTonal(
+                        tooltip: 'Tạo lịch trình mẫu',
+                        onPressed: () => context.push('/planner'),
+                        icon: Icon(
+                          path == '/trips'
+                              ? Icons.add
+                              : Icons.auto_awesome_outlined,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
         body: SafeArea(top: false, bottom: false, child: child),
         bottomNavigationBar: SafeArea(
           top: false,

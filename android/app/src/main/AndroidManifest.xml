@@ -2,6 +2,7 @@
     <application
         android:label="LocalMate AI"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
