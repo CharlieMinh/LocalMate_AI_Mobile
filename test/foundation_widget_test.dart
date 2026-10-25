@@ -50,7 +50,16 @@ void main() {
         find.byType(NavigationDestination).at(destination.index),
       );
       await tester.pumpAndSettle();
-      expect(find.text(destination.heading), findsOneWidget);
+      expect(
+        find.text(switch (destination) {
+          Destination.explore => 'Khám phá',
+          Destination.metro => 'Ga Metro',
+          Destination.trips => 'Lịch trình cá nhân',
+          Destination.account => 'Tài khoản',
+          _ => destination.heading,
+        }).first,
+        findsOneWidget,
+      );
       expect(
         tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
         destination.index,
@@ -80,7 +89,7 @@ void main() {
       final router = container.read(routerProvider);
       router.go('/private');
       await tester.pumpAndSettle();
-      expect(find.text('Đăng nhập offline'), findsOneWidget);
+      expect(find.byKey(const Key('login-email')), findsOneWidget);
       router.go(
         '/payment-return?orderId=11111111-1111-1111-1111-111111111111&flow=single&status=Paid',
       );

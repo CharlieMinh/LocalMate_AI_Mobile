@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/formatters.dart';
 import '../../../shared/widgets/content_states.dart';
+import '../../../shared/widgets/content_container.dart';
+import '../../../shared/widgets/feedback_banner.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../discovery/data/station_fixture_data.dart';
 import '../application/planner_controller.dart';
@@ -14,33 +17,48 @@ class PlannerEntryPage extends StatelessWidget {
   const PlannerEntryPage({super.key});
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
+    padding: EdgeInsets.zero,
     children: [
-      Text(
-        'Hành trình của bạn',
-        style: Theme.of(context).textTheme.headlineSmall,
+      ContentContainer(
+        maxWidth: 520,
+        verticalPadding: 56,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(Icons.wallet_outlined, size: 42, color: Brand.muted),
+            const SizedBox(height: 24),
+            const Text(
+              'Một hành trình đang chờ bạn',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                height: 1.5,
+                fontWeight: FontWeight.w700,
+                color: Brand.ink,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Chọn một ga và thời gian rảnh để bắt đầu hành trình đầu tiên.',
+              textAlign: TextAlign.center,
+              style: BrandTypography.body,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => context.push('/planner'),
+              icon: const Icon(Icons.add),
+              label: const Text('Tạo lịch trình mẫu'),
+            ),
+            const SizedBox(height: 24),
+            const _OfflineNotice(),
+            const Text(
+              'Lịch trình đã lưu chưa được kết nối. Bản xem trước chỉ tồn tại tạm thời trong phiên, không phải chuyến đi đã lưu.',
+              textAlign: TextAlign.center,
+              style: BrandTypography.metadata,
+            ),
+          ],
+        ),
       ),
-      const SizedBox(height: 32),
-      const Icon(Icons.route_outlined, size: 48, color: Brand.navy),
-      const SizedBox(height: 16),
-      Text(
-        'Dành một buổi cho chính mình',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Bắt đầu từ ga, thời gian và sở thích.',
-        textAlign: TextAlign.center,
-      ),
-      const SizedBox(height: 24),
-      FilledButton.icon(
-        onPressed: () => context.push('/planner'),
-        icon: const Icon(Icons.add),
-        label: const Text('Tạo lịch trình mẫu'),
-      ),
-      const SizedBox(height: 20),
-      const _OfflineNotice(),
     ],
   );
 }
@@ -82,6 +100,12 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     'Đi theo phong cách của bạn',
   ];
   static const captions = ['VỊ TRÍ', 'THỜI GIAN', 'SỞ THÍCH', 'PHONG CÁCH'];
+  static const helpers = [
+    'Chọn một ga trên tuyến Metro số 1.',
+    'Một hành trình vừa với khoảng thời gian rảnh.',
+    'Chọn các trải nghiệm bạn muốn ưu tiên, hoặc tiếp tục mà không chọn.',
+    'Hoàn tất lựa chọn trước khi xem lịch trình mẫu.',
+  ];
 
   void back() {
     ref.read(plannerProvider.notifier).interrupt();
@@ -206,6 +230,7 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     final state = ref.watch(plannerProvider);
     final catalog = ref.watch(plannerTagsProvider);
     final busy = state.phase == PlannerPhase.processing;
+    final reviewDate = parsePlannerDate(date.text);
     Widget catalogFailure() => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -242,344 +267,432 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
           child: Column(
             children: [
               Expanded(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: SingleChildScrollView(
-                      controller: scroll,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'BƯỚC ${step + 1}/4 · ${captions[step]}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Brand.muted,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Semantics(
-                            label: 'Bước ${step + 1} trên 4',
-                            child: Row(
+                child: busy
+                    ? const _PlannerLoading()
+                    : Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: SingleChildScrollView(
+                            controller: scroll,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                for (var i = 0; i < 4; i++)
-                                  Expanded(
-                                    child: Container(
-                                      height: 4,
-                                      margin: EdgeInsets.only(
-                                        right: i == 3 ? 0 : 6,
-                                      ),
-                                      color: i <= step
-                                          ? Brand.navy
-                                          : Brand.line,
+                                Semantics(
+                                  label: 'Bước ${step + 1} trên 4',
+                                  child: Row(
+                                    children: [
+                                      for (var i = 0; i < 4; i++)
+                                        Expanded(
+                                          child: Container(
+                                            height: 4,
+                                            margin: EdgeInsets.only(
+                                              right: i == 3 ? 0 : 6,
+                                            ),
+                                            color: i <= step
+                                                ? Brand.navy
+                                                : Brand.line,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'BƯỚC ${step + 1}/4 · ${captions[step]}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    height: 18 / 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Brand.navy,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                ...[
+                                  Text(
+                                    titles[step],
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      height: 1.35,
+                                      color: Brand.ink,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
+                                  const SizedBox(height: 7),
+                                  Text(
+                                    helpers[step],
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      height: 20 / 12,
+                                      color: Brand.muted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 23),
+                                  if (step == 0) ...[
+                                    const _PlannerLabel('Ga xuất phát'),
+                                    DropdownButtonFormField<int>(
+                                      initialValue: origin,
+                                      isExpanded: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Ga xuất phát',
+                                        floatingLabelBehavior:
+                                            FloatingLabelBehavior.never,
+                                      ),
+                                      items: [
+                                        for (final station in stationSeed)
+                                          DropdownMenuItem(
+                                            value: station['Order'] as int,
+                                            child: Text(
+                                              '${station['Order']}. ${station['Name']}',
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                      ],
+                                      onChanged: busy
+                                          ? null
+                                          : (value) =>
+                                                setState(() => origin = value!),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const _PlannerLabel('Ga đích (tùy chọn)'),
+                                    DropdownButtonFormField<int>(
+                                      initialValue: destination ?? 0,
+                                      isExpanded: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Ga đích (tùy chọn)',
+                                        floatingLabelBehavior:
+                                            FloatingLabelBehavior.never,
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem(
+                                          value: 0,
+                                          child: Text('Không chọn'),
+                                        ),
+                                        for (final station in stationSeed)
+                                          DropdownMenuItem(
+                                            value: station['Order'] as int,
+                                            child: Text(
+                                              '${station['Order']}. ${station['Name']}',
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                      ],
+                                      onChanged: busy
+                                          ? null
+                                          : (value) => setState(
+                                              () => destination = value == 0
+                                                  ? null
+                                                  : value,
+                                            ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const FeedbackBanner(
+                                      message: 'Địa điểm và thứ tự di chuyển sẽ được xem lại trong bản mẫu.',
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const _OfflineNotice(),
+                                  ],
+                                  if (step == 1) ...[
+                                    _field(
+                                      date,
+                                      'Ngày đi (yyyy-MM-dd, tùy chọn)',
+                                      busy,
+                                      localErrors['PlannedDate'] ??
+                                          state.errors['PlannedDate'],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _field(
+                                      time,
+                                      'Giờ bắt đầu (HH:mm, tùy chọn)',
+                                      busy,
+                                      localErrors['StartTime'] ??
+                                          state.errors['StartTime'],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Giờ Việt Nam. Bỏ trống: ngày hiện tại và 08:00 theo mặc định server. Lịch trình có thể sang ngày hôm sau.',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    const _PlannerLabel('Thời lượng'),
+                                    _PlannerChoiceGrid(
+                                      children: [
+                                        for (final h in [2, 4, 6, 8])
+                                          _PlannerChoiceCard(
+                                            label: h < 6
+                                                ? '$h giờ'
+                                                : h == 6
+                                                ? 'Một buổi · 6 giờ'
+                                                : 'Cả ngày · 8 giờ',
+                                            icon: h < 6
+                                                ? Icons.schedule
+                                                : Icons.light_mode_outlined,
+                                            selected: duration == h,
+                                            onTap: busy
+                                                ? null
+                                                : () => setState(
+                                                    () => duration = h,
+                                                  ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const _PlannerLabel(
+                                      'Thời lượng khác (1–24 giờ)',
+                                    ),
+                                    DropdownButtonFormField<int>(
+                                      key: ValueKey(duration),
+                                      initialValue: duration,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Thời lượng',
+                                        floatingLabelBehavior:
+                                            FloatingLabelBehavior.never,
+                                      ),
+                                      items: [
+                                        for (var h = 1; h <= 24; h++)
+                                          DropdownMenuItem(
+                                            value: h,
+                                            child: Text('$h giờ'),
+                                          ),
+                                      ],
+                                      onChanged: busy
+                                          ? null
+                                          : (value) => setState(
+                                              () => duration = value!,
+                                            ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _field(
+                                      budget,
+                                      'Ngân sách tối đa (VND / người)',
+                                      busy,
+                                      localErrors['BudgetMax'] ??
+                                          state.errors['BudgetMax'],
+                                      numeric: true,
+                                    ),
+                                    const Text(
+                                      'Ngân sách tối thiểu cố định 0 VND. Giá trị 0 không có nghĩa là không giới hạn.',
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  if (step == 3) ...[
+                                    const _PlannerLabel('Cách di chuyển'),
+                                    _PlannerChoiceGrid(
+                                      children: [
+                                        for (final value
+                                            in PlannerTravelMode.values)
+                                          _PlannerChoiceCard(
+                                            label: switch (value) {
+                                              PlannerTravelMode.auto =>
+                                                'Tự động',
+                                              PlannerTravelMode.walking =>
+                                                'Đi bộ',
+                                              PlannerTravelMode.motorbike =>
+                                                'Xe máy',
+                                              PlannerTravelMode.metro =>
+                                                'Metro',
+                                            },
+                                            icon: switch (value) {
+                                              PlannerTravelMode.auto =>
+                                                Icons.auto_awesome_outlined,
+                                              PlannerTravelMode.walking =>
+                                                Icons.directions_walk,
+                                              PlannerTravelMode.motorbike =>
+                                                Icons.two_wheeler,
+                                              PlannerTravelMode.metro =>
+                                                Icons.train_outlined,
+                                            },
+                                            selected: mode == value,
+                                            onTap: busy
+                                                ? null
+                                                : () => setState(
+                                                    () => mode = value,
+                                                  ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 20),
+                                  ],
+                                  if (step == 2) ...[
+                                    const _PlannerLabel(
+                                      'Sở thích (không bắt buộc)',
+                                    ),
+                                    const Text(
+                                      'Danh mục mẫu offline; mã sở thích không phải dữ liệu production.',
+                                      style: BrandTypography.metadata,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    catalog.when(
+                                      skipLoadingOnRefresh: false,
+                                      loading: () => const LoadingContent(
+                                        label: 'Đang tải sở thích mẫu…',
+                                      ),
+                                      error: (_, _) => catalogFailure(),
+                                      data: (items) => items.isEmpty
+                                          ? const EmptyContent(
+                                              title: 'Chưa có sở thích mẫu',
+                                              message: 'Bạn vẫn có thể bỏ trống lựa chọn.',
+                                            )
+                                          : _PlannerChoiceGrid(
+                                              children: [
+                                                for (final tag in items)
+                                                  _PlannerChoiceCard(
+                                                    icon: switch (tag.label) {
+                                                      'Văn hóa' =>
+                                                        Icons
+                                                            .account_balance_outlined,
+                                                      'Ẩm thực' =>
+                                                        Icons
+                                                            .restaurant_outlined,
+                                                      'Cà phê' =>
+                                                        Icons
+                                                            .local_cafe_outlined,
+                                                      _ => Icons.park_outlined,
+                                                    },
+                                                    label: tag.label,
+                                                    selected: tags.contains(
+                                                      tag.id,
+                                                    ),
+                                                    onTap: busy
+                                                        ? null
+                                                        : () => setState(() {
+                                                            tags.contains(
+                                                                  tag.id,
+                                                                )
+                                                                ? tags.remove(
+                                                                    tag.id,
+                                                                  )
+                                                                : tags.add(
+                                                                    tag.id,
+                                                                  );
+                                                          }),
+                                                  ),
+                                              ],
+                                            ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    FeedbackBanner(
+                                      message: tags.isEmpty
+                                          ? 'Chưa chọn sở thích · Bạn có thể tiếp tục.'
+                                          : '${tags.length} sở thích đã chọn',
+                                    ),
+                                    if (catalog.hasError || catalog.hasValue)
+                                      for (final id in tags.where(
+                                        (id) =>
+                                            catalog.hasError ||
+                                            !(catalog.asData?.value ??
+                                                    <PlannerTag>[])
+                                                .any((tag) => tag.id == id),
+                                      ))
+                                        InputChip(
+                                          key: ValueKey(id),
+                                          label: Text(
+                                            catalog.hasError
+                                                ? 'Sở thích đã chọn chưa thể xác minh'
+                                                : 'Sở thích cần sửa: không còn trong danh mục mẫu',
+                                          ),
+                                          deleteButtonTooltipMessage:
+                                              'Bỏ lựa chọn này',
+                                          onDeleted: busy
+                                              ? null
+                                              : () => setState(
+                                                  () => tags.remove(id),
+                                                ),
+                                        ),
+                                    if (state.errors['TagIds'] != null)
+                                      Text(state.errors['TagIds']!),
+                                    if (localErrors['TagIds'] != null)
+                                      Semantics(
+                                        liveRegion: true,
+                                        child: Text(localErrors['TagIds']!),
+                                      ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  if (step == 3) ...[
+                                    if (catalog.hasError) catalogFailure(),
+                                    TextField(
+                                      controller: note,
+                                      enabled: !busy,
+                                      minLines: 2,
+                                      maxLines: 4,
+                                      decoration: InputDecoration(
+                                        labelText: 'Ghi chú (tùy chọn)',
+                                        helper: const Text(
+                                          'Tối đa 300 ký tự; emoji có thể được tính nhiều ký tự. Khoảng trắng thừa sẽ được gộp lại.',
+                                        ),
+                                        errorText:
+                                            localErrors['Note'] ??
+                                            state.errors['Note'],
+                                        errorMaxLines: 4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    _review(
+                                      'Ga xuất phát',
+                                      stationSeed.firstWhere(
+                                            (s) => s['Order'] == origin,
+                                          )['Name']
+                                          as String,
+                                    ),
+                                    if (destination != null)
+                                      _review(
+                                        'Ga đích',
+                                        stationSeed.firstWhere(
+                                              (s) => s['Order'] == destination,
+                                            )['Name']
+                                            as String,
+                                      ),
+                                    _review('Di chuyển', switch (mode) {
+                                      PlannerTravelMode.auto => 'Tự động',
+                                      PlannerTravelMode.walking => 'Đi bộ',
+                                      PlannerTravelMode.motorbike => 'Xe máy',
+                                      PlannerTravelMode.metro => 'Metro',
+                                    }),
+                                    _review(
+                                      'Ngày / giờ đi',
+                                      '${date.text.isEmpty
+                                          ? 'Hôm nay (mặc định)'
+                                          : reviewDate == null
+                                          ? date.text
+                                          : formatVietnameseDate(reviewDate)} · ${time.text.isEmpty ? '08:00 (mặc định)' : time.text}',
+                                    ),
+                                    _review(
+                                      'Thời lượng',
+                                      '$duration giờ · có thể sang ngày hôm sau',
+                                    ),
+                                    _review(
+                                      'Ngân sách tối đa',
+                                      '${num.tryParse(budget.text) == null ? budget.text : formatVnd(num.parse(budget.text))} VND / người',
+                                    ),
+                                    _review(
+                                      'Sở thích',
+                                      tags.isEmpty
+                                          ? 'Không chọn'
+                                          : '${tags.length} lựa chọn mẫu',
+                                    ),
+                                    const SizedBox(height: 20),
+                                    const _OfflineNotice(),
+                                    if (state.message != null)
+                                      ErrorContent(
+                                        message: state.message!,
+                                        onRetry: () =>
+                                            submit(catalog.asData?.value ?? []),
+                                      ),
+                                  ],
+                                ],
+                                const SizedBox(height: 24),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          ...[
-                            Text(
-                              titles[step],
-                              style: const TextStyle(
-                                fontSize: 22,
-                                height: 1.35,
-                                color: Brand.ink,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            if (step == 0) ...[
-                              DropdownButtonFormField<int>(
-                                initialValue: origin,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Ga xuất phát',
-                                ),
-                                items: [
-                                  for (final station in stationSeed)
-                                    DropdownMenuItem(
-                                      value: station['Order'] as int,
-                                      child: Text(
-                                        '${station['Order']}. ${station['Name']}',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                ],
-                                onChanged: busy
-                                    ? null
-                                    : (value) =>
-                                          setState(() => origin = value!),
-                              ),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<int>(
-                                initialValue: destination ?? 0,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Ga đích (tùy chọn)',
-                                ),
-                                items: [
-                                  const DropdownMenuItem(
-                                    value: 0,
-                                    child: Text('Không chọn'),
-                                  ),
-                                  for (final station in stationSeed)
-                                    DropdownMenuItem(
-                                      value: station['Order'] as int,
-                                      child: Text(
-                                        '${station['Order']}. ${station['Name']}',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                ],
-                                onChanged: busy
-                                    ? null
-                                    : (value) => setState(
-                                        () => destination = value == 0
-                                            ? null
-                                            : value,
-                                      ),
-                              ),
-                              const SizedBox(height: 16),
-                              const _OfflineNotice(),
-                            ],
-                            if (step == 1) ...[
-                              _field(
-                                date,
-                                'Ngày đi (yyyy-MM-dd, tùy chọn)',
-                                busy,
-                                localErrors['PlannedDate'] ??
-                                    state.errors['PlannedDate'],
-                              ),
-                              const SizedBox(height: 16),
-                              _field(
-                                time,
-                                'Giờ bắt đầu (HH:mm, tùy chọn)',
-                                busy,
-                                localErrors['StartTime'] ??
-                                    state.errors['StartTime'],
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Giờ Việt Nam. Bỏ trống: ngày hiện tại và 08:00 theo mặc định server. Lịch trình có thể sang ngày hôm sau.',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(height: 20),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  for (final h in [2, 4, 6, 8])
-                                    ChoiceChip(
-                                      label: Text('$h giờ'),
-                                      selected: duration == h,
-                                      onSelected: busy
-                                          ? null
-                                          : (_) => setState(() => duration = h),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<int>(
-                                key: ValueKey(duration),
-                                initialValue: duration,
-                                decoration: const InputDecoration(
-                                  labelText: 'Thời lượng',
-                                ),
-                                items: [
-                                  for (var h = 1; h <= 24; h++)
-                                    DropdownMenuItem(
-                                      value: h,
-                                      child: Text('$h giờ'),
-                                    ),
-                                ],
-                                onChanged: busy
-                                    ? null
-                                    : (value) =>
-                                          setState(() => duration = value!),
-                              ),
-                              const SizedBox(height: 16),
-                              _field(
-                                budget,
-                                'Ngân sách tối đa (VND / người)',
-                                busy,
-                                localErrors['BudgetMax'] ??
-                                    state.errors['BudgetMax'],
-                                numeric: true,
-                              ),
-                              const Text(
-                                'Ngân sách tối thiểu cố định 0 VND. Giá trị 0 không có nghĩa là không giới hạn.',
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            if (step == 3) ...[
-                              DropdownButtonFormField<PlannerTravelMode>(
-                                initialValue: mode,
-                                decoration: const InputDecoration(
-                                  labelText: 'Di chuyển',
-                                ),
-                                items: [
-                                  for (final value in PlannerTravelMode.values)
-                                    DropdownMenuItem(
-                                      value: value,
-                                      child: Text(switch (value) {
-                                        PlannerTravelMode.auto => 'Tự động',
-                                        PlannerTravelMode.walking => 'Đi bộ',
-                                        PlannerTravelMode.motorbike => 'Xe máy',
-                                        PlannerTravelMode.metro => 'Metro',
-                                      }),
-                                    ),
-                                ],
-                                onChanged: busy
-                                    ? null
-                                    : (value) => setState(() => mode = value!),
-                              ),
-                              const SizedBox(height: 20),
-                            ],
-                            if (step == 2) ...[
-                              Text(
-                                'Sở thích (không bắt buộc)',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const Text(
-                                'Danh mục mẫu offline; mã sở thích không phải dữ liệu production.',
-                              ),
-                              catalog.when(
-                                skipLoadingOnRefresh: false,
-                                loading: () => const LoadingContent(
-                                  label: 'Đang tải sở thích mẫu…',
-                                ),
-                                error: (_, _) => catalogFailure(),
-                                data: (items) => items.isEmpty
-                                    ? const EmptyContent(
-                                        title: 'Chưa có sở thích mẫu',
-                                        message:
-                                            'Bạn vẫn có thể bỏ trống lựa chọn.',
-                                      )
-                                    : Wrap(
-                                        spacing: 8,
-                                        children: [
-                                          for (final tag in items)
-                                            FilterChip(
-                                              avatar: Icon(switch (tag.label) {
-                                                'Văn hóa' =>
-                                                  Icons
-                                                      .account_balance_outlined,
-                                                'Ẩm thực' =>
-                                                  Icons.restaurant_outlined,
-                                                _ => Icons.park_outlined,
-                                              }, size: 18),
-                                              label: Text(tag.label),
-                                              selected: tags.contains(tag.id),
-                                              onSelected: busy
-                                                  ? null
-                                                  : (selected) => setState(() {
-                                                      selected
-                                                          ? tags.add(tag.id)
-                                                          : tags.remove(tag.id);
-                                                    }),
-                                            ),
-                                        ],
-                                      ),
-                              ),
-                              if (catalog.hasError || catalog.hasValue)
-                                for (final id in tags.where(
-                                  (id) =>
-                                      catalog.hasError ||
-                                      !(catalog.asData?.value ?? <PlannerTag>[])
-                                          .any((tag) => tag.id == id),
-                                ))
-                                  InputChip(
-                                    key: ValueKey(id),
-                                    label: Text(
-                                      catalog.hasError
-                                          ? 'Sở thích đã chọn chưa thể xác minh'
-                                          : 'Sở thích cần sửa: không còn trong danh mục mẫu',
-                                    ),
-                                    deleteButtonTooltipMessage:
-                                        'Bỏ lựa chọn này',
-                                    onDeleted: busy
-                                        ? null
-                                        : () => setState(() => tags.remove(id)),
-                                  ),
-                              if (state.errors['TagIds'] != null)
-                                Text(state.errors['TagIds']!),
-                              if (localErrors['TagIds'] != null)
-                                Semantics(
-                                  liveRegion: true,
-                                  child: Text(localErrors['TagIds']!),
-                                ),
-                              const SizedBox(height: 16),
-                            ],
-                            if (step == 3) ...[
-                              if (catalog.hasError) catalogFailure(),
-                              TextField(
-                                controller: note,
-                                enabled: !busy,
-                                minLines: 2,
-                                maxLines: 4,
-                                decoration: InputDecoration(
-                                  labelText: 'Ghi chú (tùy chọn)',
-                                  helperText: 'Tối đa 300 đơn vị UTF-16 sau chuẩn hóa khoảng trắng.',
-                                  errorText:
-                                      localErrors['Note'] ??
-                                      state.errors['Note'],
-                                  helperMaxLines: 4,
-                                  errorMaxLines: 4,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              _review(
-                                'Ga xuất phát',
-                                stationSeed.firstWhere(
-                                      (s) => s['Order'] == origin,
-                                    )['Name']
-                                    as String,
-                              ),
-                              _review(
-                                'Ngày / giờ đi',
-                                '${date.text.isEmpty ? 'Hôm nay (mặc định)' : date.text} · ${time.text.isEmpty ? '08:00 (mặc định)' : time.text}',
-                              ),
-                              _review(
-                                'Thời lượng',
-                                '$duration giờ · có thể sang ngày hôm sau',
-                              ),
-                              _review(
-                                'Ngân sách tối đa',
-                                '${budget.text} VND / người',
-                              ),
-                              _review(
-                                'Sở thích',
-                                tags.isEmpty
-                                    ? 'Không chọn'
-                                    : '${tags.length} lựa chọn mẫu',
-                              ),
-                              const SizedBox(height: 20),
-                              const _OfflineNotice(),
-                              if (state.message != null)
-                                ErrorContent(
-                                  message: state.message!,
-                                  onRetry: () =>
-                                      submit(catalog.asData?.value ?? []),
-                                ),
-                              if (busy)
-                                const LoadingContent(
-                                  label: 'Đang chuẩn bị preview cục bộ…',
-                                ),
-                            ],
-                          ],
-                          const SizedBox(height: 24),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
               ),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   border: Border(top: BorderSide(color: Brand.line)),
@@ -645,28 +758,42 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     bool busy,
     String? error, {
     bool numeric = false,
-  }) => TextField(
-    controller: controller,
-    enabled: !busy,
-    keyboardType: numeric ? TextInputType.number : TextInputType.text,
-    decoration: InputDecoration(
-      labelText: label,
-      errorText: error,
-      errorMaxLines: 4,
-      suffixIcon: label.startsWith('Ngày đi') || label.startsWith('Giờ bắt đầu')
-          ? IconButton(
-              tooltip: label.startsWith('Ngày') ? 'Chọn ngày' : 'Chọn giờ',
-              onPressed: busy
-                  ? null
-                  : () => _pick(controller, label.startsWith('Ngày')),
-              icon: Icon(
-                label.startsWith('Ngày')
-                    ? Icons.calendar_today_outlined
-                    : Icons.schedule,
-              ),
-            )
-          : null,
-    ),
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _PlannerLabel(
+        label.startsWith('Ngày đi')
+            ? 'Ngày đi'
+            : label.startsWith('Giờ bắt đầu')
+            ? 'Giờ xuất phát'
+            : label,
+      ),
+      TextField(
+        controller: controller,
+        enabled: !busy,
+        keyboardType: numeric ? TextInputType.number : TextInputType.text,
+        decoration: InputDecoration(
+          labelText: label,
+          floatingLabelBehavior: FloatingLabelBehavior.never,
+          errorText: error,
+          errorMaxLines: 4,
+          suffixIcon:
+              label.startsWith('Ngày đi') || label.startsWith('Giờ bắt đầu')
+              ? IconButton(
+                  tooltip: label.startsWith('Ngày') ? 'Chọn ngày' : 'Chọn giờ',
+                  onPressed: busy
+                      ? null
+                      : () => _pick(controller, label.startsWith('Ngày')),
+                  icon: Icon(
+                    label.startsWith('Ngày')
+                        ? Icons.calendar_today_outlined
+                        : Icons.schedule,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    ],
   );
 
   Future<void> _pick(TextEditingController controller, bool isDate) async {
@@ -714,6 +841,148 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
   }
 }
 
+class _PlannerLoading extends StatelessWidget {
+  const _PlannerLoading();
+  @override
+  Widget build(BuildContext context) => Center(
+    child: SingleChildScrollView(
+      child: ContentContainer(
+        maxWidth: 480,
+        verticalPadding: 32,
+        child: Semantics(
+          liveRegion: true,
+          child: Column(
+            children: [
+              const CircleAvatar(
+                radius: 36,
+                backgroundColor: Brand.infoSurface,
+                child: Icon(
+                  Icons.auto_awesome_outlined,
+                  color: Brand.navy,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Đang chuẩn bị hành trình',
+                textAlign: TextAlign.center,
+                style: BrandTypography.screenTitle,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Sắp xếp các điểm dừng để bạn xem trước.',
+                textAlign: TextAlign.center,
+                style: BrandTypography.body,
+              ),
+              const SizedBox(height: 24),
+              const LinearProgressIndicator(semanticsLabel: 'Đang tạo bản mẫu'),
+              const SizedBox(height: 24),
+              const Text(
+                'Bản mẫu offline · Bạn có thể quay lại để điều chỉnh.',
+                textAlign: TextAlign.center,
+                style: BrandTypography.metadata,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _PlannerLabel extends StatelessWidget {
+  const _PlannerLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 12,
+        height: 19 / 12,
+        fontWeight: FontWeight.w600,
+        color: Brand.ink,
+      ),
+    ),
+  );
+}
+
+class _PlannerChoiceGrid extends StatelessWidget {
+  const _PlannerChoiceGrid({required this.children});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final child in children)
+          SizedBox(width: (constraints.maxWidth - 10) / 2, child: child),
+      ],
+    ),
+  );
+}
+
+class _PlannerChoiceCard extends StatelessWidget {
+  const _PlannerChoiceCard({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    key: ValueKey('planner-choice-$label'),
+    button: true,
+    selected: selected,
+    enabled: onTap != null,
+    child: Material(
+      color: selected ? Brand.infoSurface : Brand.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: selected ? Brand.navy : Brand.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 57),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(icon, size: 19, color: Brand.navy),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 19 / 12,
+                      color: selected ? Brand.navy : Brand.ink,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                if (selected) ...[
+                  const SizedBox(width: 5),
+                  const Icon(Icons.check, size: 16, color: Brand.navy),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class PlannerPreviewPage extends ConsumerWidget {
   const PlannerPreviewPage({super.key, required this.localKey});
   final String localKey;
@@ -722,6 +991,27 @@ class PlannerPreviewPage extends ConsumerWidget {
     final preview = ref.watch(plannerProvider).preview;
     return Scaffold(
       appBar: AppBar(title: const Text('Lịch trình mẫu offline')),
+      bottomNavigationBar: preview == null || preview.localKey != localKey
+          ? null
+          : SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: const BoxDecoration(
+                  color: Brand.surface,
+                  border: Border(top: BorderSide(color: Brand.line)),
+                ),
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      context.canPop() ? context.pop() : context.go('/planner'),
+                  icon: const Icon(Icons.tune, size: 20),
+                  label: const Text('Điều chỉnh lịch trình'),
+                ),
+              ),
+            ),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -734,11 +1024,7 @@ class PlannerPreviewPage extends ConsumerWidget {
                   )
                 : ListView(
                     padding: const EdgeInsets.all(16),
-                    children: [
-                      const _OfflineNotice(),
-                      const SizedBox(height: 16),
-                      OfflinePreviewContent(preview: preview),
-                    ],
+                    children: [OfflinePreviewContent(preview: preview)],
                   ),
           ),
         ),
@@ -760,6 +1046,11 @@ class _OfflineNotice extends StatelessWidget {
       ),
       child: const Text(
         'CHẾ ĐỘ OFFLINE • Chỉ xem lịch trình mẫu. Không gọi AI, không lưu Trip, không tiêu hao lượt dùng.',
+        style: TextStyle(
+          fontSize: 12,
+          height: 20 / 12,
+          color: Brand.warningText,
+        ),
       ),
     ),
   );
@@ -768,6 +1059,16 @@ class _OfflineNotice extends StatelessWidget {
 class OfflinePreviewContent extends StatelessWidget {
   const OfflinePreviewContent({super.key, required this.preview});
   final OfflineDraftPreview preview;
+  String get originName {
+    final origin = preview.criteria.origin;
+    if (origin is StationOrigin) {
+      for (final station in stationSeed) {
+        if (station['Order'] == origin.order) return station['Name'] as String;
+      }
+    }
+    return 'điểm xuất phát';
+  }
+
   String clock(DateTime value) =>
       '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
   String stopLabel(int index) {
@@ -789,36 +1090,79 @@ class OfflinePreviewContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        'Bản xem trước tạm thời',
-        style: Theme.of(context).textTheme.titleLarge,
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Brand.warningSurface,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: const Text(
+            'Bản mẫu offline',
+            style: TextStyle(
+              fontSize: 11,
+              height: 16 / 11,
+              color: Brand.warningText,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
-      const Text(
-        'Không phải kết quả AI hay Draft đã lưu. Đóng ứng dụng hoặc đổi phiên sẽ mất bản mẫu.',
+      const SizedBox(height: 10),
+      Text(
+        'Quanh ga $originName · ${preview.criteria.durationHours} giờ',
+        style: const TextStyle(
+          fontSize: 23,
+          height: 31 / 23,
+          fontWeight: FontWeight.w700,
+          color: Brand.ink,
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        '${formatVietnameseDate(preview.start)} · xuất phát ${clock(preview.start)} · giờ Việt Nam',
+        style: BrandTypography.body.copyWith(color: Brand.muted),
       ),
       const SizedBox(height: 16),
+      Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        children: [
+          _PreviewMeta(
+            Icons.schedule,
+            '${preview.criteria.durationHours} giờ đã chọn',
+          ),
+          _PreviewMeta(
+            Icons.place_outlined,
+            '${preview.sampleStops.length} điểm dừng mẫu',
+          ),
+          _PreviewMeta(
+            Icons.account_balance_wallet_outlined,
+            'Tối đa ${formatVnd(preview.criteria.budgetMax)} VND / người',
+          ),
+          _PreviewMeta(
+            Icons.directions_outlined,
+            switch (preview.criteria.travelMode) {
+              PlannerTravelMode.auto => 'Tự động',
+              PlannerTravelMode.walking => 'Đi bộ',
+              PlannerTravelMode.motorbike => 'Xe máy',
+              PlannerTravelMode.metro => 'Metro',
+            },
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
       Text(
         'Khung giờ minh họa: ${clock(preview.start)} → ${clock(preview.end)}${preview.endsNextDay ? ' (ngày hôm sau)' : ''}',
+        style: BrandTypography.body.copyWith(color: Brand.navy),
       ),
-      Text(
-        'Ngày bắt đầu: ${preview.start.toIso8601String().substring(0, 10)} • giờ Việt Nam',
-      ),
-      Text(
-        'Thời lượng lựa chọn: ${preview.criteria.durationHours} giờ • ${preview.criteria.travelMode.wire}',
-      ),
-      Text(
-        'Ngân sách bạn nhập: ${preview.criteria.budgetMax.toString().replaceFirst(RegExp(r'\.0$'), '')} VND / người',
-      ),
-      const Text(
-        'Giá và thứ tự bên dưới chỉ minh họa; không phải báo giá hay tối ưu tuyến thực tế.',
-      ),
+      const SizedBox(height: 16),
+      const _OfflineNotice(),
       const SizedBox(height: 24),
-      Text(
-        'Lịch trình theo giờ',
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
+      Text('Lịch trình theo giờ', style: BrandTypography.sectionTitle),
       const SizedBox(height: 16),
       for (var i = 0; i < preview.sampleStops.length; i++)
         IntrinsicHeight(
@@ -826,16 +1170,17 @@ class OfflinePreviewContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                width: 28,
+                width: 24,
                 child: Column(
                   children: [
                     Container(
-                      width: 24,
-                      height: 24,
+                      width: 23,
+                      height: 23,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: Brand.navy,
-                        borderRadius: BorderRadius.circular(12),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Brand.canvas, width: 2),
                       ),
                       child: Text(
                         '${i + 1}',
@@ -850,14 +1195,14 @@ class OfflinePreviewContent extends StatelessWidget {
                       child: Container(
                         width: 2,
                         color: i + 1 < preview.sampleStops.length
-                            ? Brand.line
+                            ? Brand.timelineBorder
                             : Colors.transparent,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 20),
@@ -880,26 +1225,79 @@ class OfflinePreviewContent extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Brand.line),
                         ),
-                        child: Column(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.place_outlined, color: Brand.navy),
-                            const SizedBox(height: 10),
-                            Text(
-                              preview.sampleStops[i],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Brand.ink,
+                            Container(
+                              width: 67,
+                              height: 67,
+                              decoration: BoxDecoration(
+                                color: Brand.infoSurface,
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: const Icon(
+                                Icons.place_outlined,
+                                color: Brand.navy,
+                                size: 28,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Dừng tham quan minh họa • ước tính mẫu 0 VND, không phải giá xác nhận',
-                              style: TextStyle(fontSize: 12),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    preview.sampleStops[i],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      height: 19 / 12,
+                                      color: Brand.ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Dừng tham quan minh họa · ước tính mẫu 0 VND, không phải giá xác nhận',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      height: 18 / 11,
+                                      color: Brand.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
+                      if (i + 1 < preview.sampleStops.length) ...[
+                        const SizedBox(height: 9),
+                        const Text.rich(
+                          TextSpan(
+                            children: [
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 5),
+                                  child: Icon(
+                                    Icons.route_outlined,
+                                    size: 14,
+                                    color: Brand.muted,
+                                  ),
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Thứ tự di chuyển minh họa · chưa tối ưu tuyến',
+                              ),
+                            ],
+                          ),
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 18 / 11,
+                            color: Brand.muted,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -911,7 +1309,44 @@ class OfflinePreviewContent extends StatelessWidget {
         Text(
           'Ghi chú của bạn: ${normalizePlannerNote(preview.criteria.note) ?? ''}',
         ),
-      const Text('Chưa kết nối Backend. Không có Trip ID, Save hoặc Finalize.'),
+      const SizedBox(height: 16),
+      OutlinedButton.icon(
+        onPressed: () => context.push('/metro'),
+        icon: const Icon(Icons.train_outlined),
+        label: const Text('Ga Metro & liên kết chỉ đường'),
+      ),
+      const SizedBox(height: 16),
+      const Text(
+        'Bản xem trước tạm thời, không phải kết quả AI hay Draft đã lưu. Giá và thứ tự chỉ minh họa; đóng ứng dụng hoặc đổi phiên sẽ mất bản mẫu.',
+        style: BrandTypography.metadata,
+      ),
+      const SizedBox(height: 8),
+      const Text(
+        'Chưa kết nối Backend. Không có Trip ID, Save hoặc Finalize.',
+        style: BrandTypography.metadata,
+      ),
     ],
+  );
+}
+
+class _PreviewMeta extends StatelessWidget {
+  const _PreviewMeta(this.icon, this.label);
+  final IconData icon;
+  final String label;
+  @override
+  Widget build(BuildContext context) => Text.rich(
+    TextSpan(
+      children: [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 5),
+            child: Icon(icon, size: 15, color: Brand.muted),
+          ),
+        ),
+        TextSpan(text: label),
+      ],
+    ),
+    style: const TextStyle(fontSize: 12, height: 20 / 12, color: Brand.muted),
   );
 }
