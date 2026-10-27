@@ -22,6 +22,33 @@ flutter run --dart-define=API_BASE_URL=... --dart-define=GOOGLE_SERVER_CLIENT_ID
 
 Không có `GOOGLE_SERVER_CLIENT_ID` thì nút Google bị tắt. Android cần thêm một OAuth client loại Android (package name + SHA-1 của keystore) trong cùng Google Cloud project; việc này cấu hình trên console, không nằm trong mã nguồn.
 
+### Lưu giá trị trên máy (không commit)
+
+Thay vì gõ từng `--dart-define`, có thể lưu các giá trị vào một file local bị gitignore:
+
+```bash
+cp config/dart_defines.example.json config/dart_defines.local.json   # rồi điền giá trị
+flutter run --dart-define-from-file=config/dart_defines.local.json
+flutter build apk --debug --dart-define-from-file=config/dart_defines.local.json
+```
+
+`config/*.local.json` nằm trong `.gitignore`. File chỉ chứa 3 giá trị mà app thật sự đọc:
+
+| Khoá | Lấy từ đâu |
+|---|---|
+| `APP_ENV` | `development`, `staging` hoặc `production` |
+| `API_BASE_URL` | Địa chỉ backend (emulator + backend trên máy dev: `http://10.0.2.2:5286`) |
+| `GOOGLE_SERVER_CLIENT_ID` | `GoogleAuth__ClientId` trong `.env` của backend (client ID loại web, không phải bí mật) |
+
+### Không đưa key của backend vào app
+
+SMTP, Gemini (`Llm__ApiKey`, `Embedding__ApiKey`), PayOS, Cloudinary, `Jwt__SigningKey`, `Otp__HashKey` và mật khẩu Postgres là **bí mật phía server**.
+
+- App không gọi các dịch vụ này mà đi qua API của backend, nên không cần các key đó.
+- Mọi giá trị truyền bằng `--dart-define` đều được đóng vào APK, và ai có APK cũng giải nén lấy ra được, kể cả khi không push lên GitHub.
+
+Muốn đăng ký / quên mật khẩu, AI và PayOS chạy thật: hãy chạy **backend** với `.env` của nó (xem mục dưới); app tự dùng được qua API.
+
 ## Chạy backend cục bộ để thử
 
 Không cần sửa repo BE. Các biến môi trường dưới đây chỉ dùng cho máy dev:
@@ -57,14 +84,18 @@ Backend tự migrate và seed dữ liệu: 14 ga, khoảng 65 địa điểm, 3 
 
 Lỗi ProblemDetails được map sang tiếng Việt trong `lib/core/network/api_messages.dart`. Lỗi từng trường từ server chỉ hiển thị nguyên văn khi server đã trả tiếng Việt; thông điệp mặc định tiếng Anh của ASP.NET được thay bằng câu tiếng Việt. Timeout, mất mạng và lỗi 5xx có thông điệp riêng.
 
-## Chưa kiểm chứng end-to-end
+## Thử với key thật (27/10/2026)
 
-Máy dev không có SMTP, khoá Gemini, cấu hình PayOS và Google OAuth nên các luồng sau mới được kiểm bằng phản hồi **đúng hình dạng hợp đồng** (ghi chú rõ trong `test/support/live_backend.dart`), chưa chạy với dịch vụ thật:
+Backend chạy trên máy với `.env` thật (SMTP, Gemini, PayOS), DB thử nghiệm riêng. Phản hồi thật được giải mã bằng model của app (test tạm, không commit).
 
-- Đăng ký / quên mật khẩu thành công (backend dev trả 500 vì không gửi được email; lỗi trùng email, sai mã đã thu thật).
-- AI giải thích và "Điền giúp tôi" thành công (backend dev trả 503 `ai_unavailable`, đã thu thật).
-- PayOS: tạo đơn và trạng thái Paid (backend dev trả 502 `payment_gateway_unavailable`, đã thu thật; báo giá đã thu thật).
-- Google: ID token thật (backend trả 401 `invalid_google_token` cho token giả, đã thu thật).
+| Luồng | Kết quả |
+|---|---|
+| Đăng ký + OTP qua email | **Chạy được**: email tới hộp thư thật, `register/verify` → 201, đăng nhập, hồ sơ, gói Free, thông báo chào mừng |
+| "Điền giúp tôi" (`parse-request`) | **Chạy được** với Gemini (~8–10 s); app điền đúng thời lượng, ngân sách, phương tiện, ngày giờ, sở thích, ga đích và hỏi thêm ga xuất phát |
+| AI giải thích (`explanations`) | **Lỗi phía backend**: `TripExplanationService.ProviderTimeout` = 10 s nên Gemini bị cắt (`ProviderFailed` sau 10.010 ms, cả 2 lần). App hiện đúng thông báo 503 |
+| PayOS checkout | **Lỗi phía backend**: mã đơn lấy từ sequence `PaymentOrderCodeSequence`, nên DB mới đánh số lại từ đầu và trùng đơn đã có trên cùng tài khoản PayOS (đơn thật, đã thanh toán). Backend trả 502; không có đơn mới nào được tạo |
+
+Chưa kiểm: quên mật khẩu với email thật, PayOS thành công (cần dải mã đơn riêng cho môi trường thử), Google với ID token thật (cần OAuth client Android), chạy trên thiết bị thật.
 
 Chưa làm: mua lẻ một lượt chốt lịch trình (`/itinerary-purchases/*`; màn trạng thái đơn đã hỗ trợ `flow=single`), góp ý ứng dụng (`/app-feedback`), phiên demo (`/auth/demo`).
 
