@@ -304,14 +304,14 @@ void main() {
         'GET /search': (_) => jsonReply({
           'code': 'invalid_search_query',
           'errors': {
-            'Q': ['Server Q error'],
+            'Q': ['Từ khoá từ máy chủ chưa hợp lệ'],
           },
         }, status: 400),
       },
     );
     await boot(tester, client: probe, route: '/explore');
     await submit(tester, 'valid');
-    expect(find.text('Server Q error'), findsOneWidget);
+    expect(find.text('Từ khoá từ máy chủ chưa hợp lệ'), findsOneWidget);
     expect(find.text('Thử lại'), findsOneWidget);
   });
   testWidgets(

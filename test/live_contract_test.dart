@@ -99,6 +99,42 @@ void main() {
       expect(object(live('visit'))['isVisited'], isTrue);
     });
 
+    test('reviews, feedback and draft editing', () {
+      final tags = QuickTagSets.fromJson(live('master-data'));
+      expect(tags.review, hasLength(12));
+      expect(tags.feedback.map((t) => t.code), contains('Suitable'));
+      expect(tags.review.first.label, 'Đáng ghé thăm');
+      final review = PlaceReview.fromJson(live('review'));
+      expect(review.rating, 5);
+      expect(review.quickTags, ['WorthVisiting', 'NearMetro']);
+      expect(TripFeedback.fromJson(live('feedback-get')).quickTag, 'Suitable');
+      final alternatives = AlternativePlace.listFromJson(live('alternatives'));
+      expect(alternatives, hasLength(5));
+      expect(alternatives.first.stationName, isNotNull);
+      expect((live('delete-item')! as List), hasLength(3));
+    });
+
+    test('new error codes map to Vietnamese copy', () {
+      String msg(String name, int status) =>
+          apiErrorMessage(ApiFailure.fromResponse(status, live(name)));
+      expect(
+        msg('review-not-visited', 409),
+        'Hãy đánh dấu đã ghé trước khi đánh giá điểm này.',
+      );
+      expect(msg('feedback-dup', 409), contains('đã gửi phản hồi'));
+      expect(msg('replace-same', 400), contains('địa điểm khác'));
+      expect(msg('explanations', 503), contains('AI đang tạm thời'));
+      // Localized field message from the server is shown as is...
+      expect(msg('parse-short', 400), startsWith('Hãy mô tả chuyến đi'));
+      // ...but default English validation text is not.
+      expect(msg('register-bad', 400), isNot(contains('FullName')));
+      expect(msg('register-dup', 409), contains('đã được đăng ký'));
+      expect(msg('verify-bad', 400), 'Mã xác thực không đúng.');
+      expect(msg('google-bad', 401), contains('Google'));
+      expect(msg('patch-bad-tag', 400), contains('Sở thích'));
+      expect(msg('checkout', 502), contains('Cổng thanh toán'));
+    });
+
     test('validation ProblemDetails keeps field errors', () {
       final failure = ApiFailure.fromResponse(400, live('generate-bad'));
       expect(failure.kind, FailureKind.validation);

@@ -18,6 +18,7 @@ import '../../planner/presentation/planner_format.dart';
 import '../../planner/presentation/planner_page.dart';
 import '../application/trips_providers.dart';
 import '../domain/trip_models.dart';
+import 'trip_sheets.dart';
 
 String _tripTitle(String? station, int hours) => station == null
     ? 'Lịch trình $hours giờ'
@@ -303,8 +304,13 @@ class TripDetailPage extends ConsumerWidget {
                             ),
                         ],
                         onToggleVisited: (stop) => _toggle(context, ref, stop),
-                        onReviewStop: (_) => _comingSoon(context),
-                        onTripFeedback: () => _comingSoon(context),
+                        onReviewStop: (stop) => showStopReviewSheet(
+                          context,
+                          itemId: stop.id,
+                          placeName: stop.title,
+                        ),
+                        onTripFeedback: () =>
+                            showTripFeedbackSheet(context, id),
                       ),
               ),
             ],
@@ -353,20 +359,78 @@ class TripDetailPage extends ConsumerWidget {
       messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
     }
   }
-
-  // TODO(phase-5): POST /trips/items/{id}/review and /feedback/trip sheets.
-  void _comingSoon(BuildContext context) => ScaffoldMessenger.of(context)
-      .showSnackBar(
-        const SnackBar(content: Text('Đánh giá sẽ có trong bản cập nhật tới.')),
-      );
 }
 
-class _DraftView extends StatelessWidget {
+class _DraftView extends ConsumerStatefulWidget {
   const _DraftView(this.trip);
   final TripGenerationResponseDto trip;
 
   @override
+  ConsumerState<_DraftView> createState() => _DraftViewState();
+}
+
+class _DraftViewState extends ConsumerState<_DraftView> {
+  bool _explaining = false;
+
+  void _refresh() => ref
+    ..invalidate(tripDetailProvider(widget.trip.id))
+    ..invalidate(myTripsProvider);
+
+  Future<void> _replace(PlannerTripItemDto item) async {
+    final swapped = await showReplaceStopSheet(
+      context,
+      tripId: widget.trip.id,
+      itemId: item.itemId,
+      placeName: item.placeName,
+    );
+    if (swapped) _refresh();
+  }
+
+  Future<void> _delete(PlannerTripItemDto item) async {
+    final confirmed = await showAppConfirmSheet(
+      context: context,
+      title: 'Xoá điểm dừng?',
+      message:
+          '${item.placeName} sẽ bị xoá khỏi bản nháp. Giờ của các điểm sau được tính lại.',
+      confirmLabel: 'Xoá điểm dừng',
+      confirmIcon: LucideIcons.trash2,
+      cancelLabel: 'Giữ lại',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(tripsRepositoryProvider)
+          .deleteItem(widget.trip.id, item.itemId);
+      _refresh();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Đã xoá ${item.placeName}.')),
+      );
+    } on ApiFailure catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
+    }
+  }
+
+  Future<void> _explain() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _explaining = true);
+    try {
+      await ref.read(tripsRepositoryProvider).explain(widget.trip.id);
+      _refresh();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('AI đã viết lại lý do cho từng điểm.')),
+      );
+    } on ApiFailure catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
+    } finally {
+      if (mounted) setState(() => _explaining = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final trip = widget.trip;
     final scheme = context.colors;
     final text = context.textStyles;
     final items = trip.items;
@@ -414,7 +478,18 @@ class _DraftView extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         const AppBanner(
           kind: BannerKind.warning,
-          message: 'Xem lại từng điểm dừng trước khi chốt lịch trình.',
+          message: 'Xem lại từng điểm dừng trước khi chốt. Bạn có thể đổi hoặc xoá điểm chưa ưng.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AppButton.tonal(
+          buttonKey: const ValueKey('draft-explain'),
+          label: trip.aiExplainedAt == null
+              ? 'Nhờ AI giải thích lý do chọn'
+              : 'Nhờ AI viết lại lý do',
+          icon: LucideIcons.sparkles,
+          expand: true,
+          loading: _explaining,
+          onPressed: _explaining ? null : _explain,
         ),
         const SizedBox(height: AppSpacing.xl),
         const SectionHeader(
@@ -445,13 +520,20 @@ class _DraftView extends StatelessWidget {
               ),
               actions: [
                 AppButton.ghost(
-                  label: 'Xem địa điểm',
+                  buttonKey: ValueKey('draft-replace-${items[i].itemId}'),
+                  label: 'Đổi địa điểm',
+                  icon: LucideIcons.replace,
                   compact: true,
-                  trailingIcon: LucideIcons.chevronRight,
-                  onPressed: () => context.push(
-                    '/places/${Uri.encodeComponent(items[i].placeId)}',
-                  ),
+                  onPressed: () => _replace(items[i]),
                 ),
+                if (items.length > 1)
+                  AppButton.ghost(
+                    buttonKey: ValueKey('draft-delete-${items[i].itemId}'),
+                    label: 'Xoá',
+                    icon: LucideIcons.trash2,
+                    compact: true,
+                    onPressed: () => _delete(items[i]),
+                  ),
               ],
             ),
           ),

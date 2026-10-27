@@ -144,4 +144,98 @@ void main() {
     expect(find.text('Cơm tấm 182'), findsOneWidget);
     await finish(tester, container);
   });
+
+  testWidgets('finalized trip: review a visited stop and give feedback', (
+    tester,
+  ) async {
+    backend.finalized = true;
+    final container = await boot(
+      tester,
+      route: '/trips/${backend.tripId}',
+      signIn: true,
+    );
+    await tap(tester, find.widgetWithText(TextButton, 'Đánh giá'));
+    expect(find.text('Đánh giá điểm dừng'), findsOneWidget);
+    // Server labels from master-data, grouped.
+    expect(find.text('Điểm cộng'), findsOneWidget);
+    expect(find.text('Gần Metro'), findsOneWidget);
+    final submit = find.byKey(const ValueKey('review-submit'));
+    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+    await tap(tester, find.byTooltip('5 sao'));
+    await tap(tester, find.byKey(const ValueKey('review-tag-WorthVisiting')));
+    await tap(tester, find.byKey(const ValueKey('review-tag-NearMetro')));
+    await tester.enterText(
+      find.byKey(const ValueKey('review-comment')),
+      'Đồ ăn ngon, gần ga.',
+    );
+    await tap(tester, submit);
+    expect(backend.calls, contains('review'));
+    expect(backend.bodies['review'], {
+      'rating': 5,
+      'quickTags': ['WorthVisiting', 'NearMetro'],
+      'comment': 'Đồ ăn ngon, gần ga.',
+    });
+    expect(find.textContaining('Cảm ơn bạn đã đánh giá'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5)); // snackbar covers the CTA
+    await tester.pumpAndSettle();
+    // Re-opening shows the saved review.
+    await tap(tester, find.widgetWithText(TextButton, 'Đánh giá'));
+    expect(find.text('Đánh giá của bạn'), findsOneWidget);
+    expect(find.text('Đáng ghé thăm'), findsOneWidget);
+    await tap(tester, find.byTooltip('Đóng'));
+
+    await tap(tester, find.text('Đánh giá chuyến đi'));
+    await tap(tester, find.byKey(const ValueKey('feedback-tag-Suitable')));
+    await tap(tester, find.byKey(const ValueKey('feedback-submit')));
+    expect(backend.bodies['feedback'], {
+      'tripId': backend.tripId,
+      'quickTag': 'Suitable',
+    });
+    await tester.pump(const Duration(seconds: 5));
+    await finish(tester, container);
+  });
+
+  testWidgets('draft: swap a stop, delete a stop, AI explain error', (
+    tester,
+  ) async {
+    final container = await boot(
+      tester,
+      route: '/trips/${backend.tripId}',
+      signIn: true,
+    );
+    await tap(
+      tester,
+      find.byKey(ValueKey('draft-replace-${backend.secondItemId}')),
+    );
+    expect(find.text('Đổi địa điểm'), findsWidgets);
+    expect(find.text('Local Saigon Cafe - Bến Thành'), findsOneWidget);
+    await tap(tester, find.text('Local Saigon Cafe - Bến Thành'));
+    expect(backend.bodies['replace'], {
+      'newPlaceId': '507b3051-0214-4906-a382-86f08782ac59',
+    });
+    expect(
+      find.text('Đã đổi sang Local Saigon Cafe - Bến Thành.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+
+    await tap(
+      tester,
+      find.byKey(ValueKey('draft-delete-${backend.lastItemId}')),
+    );
+    await tap(tester, find.text('Xoá điểm dừng'));
+    expect(backend.calls, contains('delete-item'));
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+
+    await tap(tester, find.byKey(const ValueKey('draft-explain')));
+    expect(backend.calls, contains('explain'));
+    expect(
+      find.text('AI đang tạm thời không khả dụng. Vui lòng thử lại sau.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await finish(tester, container);
+  });
 }

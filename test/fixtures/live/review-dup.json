@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/409","title":"A review already exists for this itinerary item.","status":409,"instance":"/api/trips/items/a89ebe0b-b57f-4945-9383-e80fb234378a/review","code":"review_already_exists"}

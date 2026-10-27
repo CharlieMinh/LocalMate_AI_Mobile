@@ -28,14 +28,34 @@ class LiveBackend {
   LiveBackend() {
     final trip = jsonDecode(liveJson('trip')) as Map<String, Object?>;
     tripId = trip['id']! as String;
-    itemId = ((trip['items']! as List).first as Map)['itemId']! as String;
+    final items = [
+      for (final i in trip['items']! as List) (i as Map)['itemId']! as String,
+    ];
+    itemId = items.first;
+    secondItemId = items[1];
+    lastItemId = items.last;
   }
 
   late final String tripId;
+
+  /// Visited in `trip-final`.
   late final String itemId;
+  late final String secondItemId;
+  late final String lastItemId;
   bool finalized = false;
   bool generateQuotaExceeded = false;
+  bool reviewed = false;
+  bool feedbackGiven = false;
   final calls = <String>[];
+
+  /// Decoded JSON bodies of write requests, keyed like [calls].
+  final bodies = <String, Object?>{};
+
+  ResponseBody _write(String call, RequestOptions r, ResponseBody body) {
+    calls.add(call);
+    bodies[call] = r.data;
+    return body;
+  }
 
   Map<String, MockReply> get fixtures => {
     'POST /auth/login': (_) => reply(
@@ -71,6 +91,35 @@ class LiveBackend {
       calls.add('visit');
       return reply(liveJson('visit'));
     },
+    'GET /trips/items/$itemId/review': (_) => reviewed
+        ? reply(liveJson('review'))
+        : reply(liveJson('review-missing'), status: 404),
+    'POST /trips/items/$itemId/review': (r) {
+      reviewed = true;
+      return _write('review', r, reply(liveJson('review'), status: 201));
+    },
+    'DELETE /trips/items/$itemId/review': (r) {
+      reviewed = false;
+      return _write('review-delete', r, reply('', status: 204));
+    },
+    'GET /feedback/trip/$tripId': (_) => feedbackGiven
+        ? reply(liveJson('feedback-get'))
+        : reply(
+            jsonEncode({'status': 404, 'code': 'feedback_not_found'}),
+            status: 404,
+          ),
+    'POST /feedback/trip': (r) {
+      feedbackGiven = true;
+      return _write('feedback', r, reply(liveJson('feedback'), status: 201));
+    },
+    'GET /trips/$tripId/items/$secondItemId/alternatives': (_) =>
+        reply(liveJson('alternatives')),
+    'PUT /trips/$tripId/items/$secondItemId/replace': (r) =>
+        _write('replace', r, reply(liveJson('replace'))),
+    'DELETE /trips/$tripId/items/$lastItemId': (r) =>
+        _write('delete-item', r, reply(liveJson('delete-item'))),
+    'POST /trips/$tripId/explanations': (r) =>
+        _write('explain', r, reply(liveJson('explanations'), status: 503)),
     'POST /trips/generate': (_) {
       calls.add('generate');
       return generateQuotaExceeded

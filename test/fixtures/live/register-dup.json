@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/409","title":"Email is already registered.","status":409,"instance":"/api/auth/register","code":"duplicate_email"}

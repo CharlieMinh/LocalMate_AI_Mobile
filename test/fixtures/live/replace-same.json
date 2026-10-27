@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/400","title":"New place must be different from the current place.","status":400,"instance":"/api/trips/7561452c-5f5f-41a4-8bf2-82e6a3c65c84/items/37456d27-0d62-4591-8e71-242aef245ff3/replace","code":"same_place"}

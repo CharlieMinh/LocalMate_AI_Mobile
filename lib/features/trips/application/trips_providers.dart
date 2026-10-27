@@ -60,3 +60,34 @@ final tagOptionsProvider = FutureProvider.autoDispose<List<TagOption>>(
   (ref) => ref.watch(tripsRepositoryProvider).tags(_token(ref)),
   retry: _manualRetry,
 );
+
+final quickTagsProvider = FutureProvider.autoDispose<QuickTagSets>(
+  (ref) => ref.watch(tripsRepositoryProvider).quickTags(_token(ref)),
+  retry: _manualRetry,
+);
+
+/// Keyed by itinerary item id; null = not reviewed yet.
+final stopReviewProvider = FutureProvider.autoDispose
+    .family<PlaceReview?, String>((ref, itemId) {
+      ref.watch(_ownerProvider);
+      return ref.watch(tripsRepositoryProvider).review(itemId, _token(ref));
+    }, retry: _manualRetry);
+
+/// Keyed by trip id; null = no feedback yet.
+final tripFeedbackProvider = FutureProvider.autoDispose
+    .family<TripFeedback?, String>((ref, tripId) {
+      ref.watch(_ownerProvider);
+      return ref.watch(tripsRepositoryProvider).feedback(tripId, _token(ref));
+    }, retry: _manualRetry);
+
+/// Replacement candidates for one draft stop.
+final alternativesProvider = FutureProvider.autoDispose
+    .family<List<AlternativePlace>, ({String tripId, String itemId})>((
+      ref,
+      key,
+    ) {
+      ref.watch(_ownerProvider);
+      return ref
+          .watch(tripsRepositoryProvider)
+          .alternatives(key.tripId, key.itemId, _token(ref));
+    }, retry: _manualRetry);

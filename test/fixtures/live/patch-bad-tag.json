@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/400","title":"One or more preferences are invalid.","status":400,"instance":"/api/users/me","code":"invalid_preference"}

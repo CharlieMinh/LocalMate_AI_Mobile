@@ -179,3 +179,176 @@ class TagOption {
   static List<TagOption> listFromJson(Object? raw) =>
       raw is List ? raw.map(TagOption.fromJson).toList() : const [];
 }
+
+/// A `{code, label}` pair from `master-data` (review / feedback tags).
+class QuickTag {
+  const QuickTag(this.code, this.label);
+  final String code;
+  final String label;
+
+  static List<QuickTag> listFromJson(Object? raw) => [
+    if (raw is List)
+      for (final t in raw)
+        if (t is Map && t['code'] is String)
+          QuickTag(t['code']! as String, (t['label'] as String?) ?? ''),
+  ];
+}
+
+/// `master-data.reviewQuickTags` and `feedbackQuickTags`.
+class QuickTagSets {
+  const QuickTagSets({required this.review, required this.feedback});
+  final List<QuickTag> review;
+  final List<QuickTag> feedback;
+
+  factory QuickTagSets.fromJson(Object? raw) {
+    final j = _map(raw);
+    return QuickTagSets(
+      review: QuickTag.listFromJson(j['reviewQuickTags']),
+      feedback: QuickTag.listFromJson(j['feedbackQuickTags']),
+    );
+  }
+}
+
+/// `PlaceReviewResponse`: the user's review of one visited stop.
+class PlaceReview {
+  const PlaceReview({
+    required this.id,
+    required this.rating,
+    this.quickTags = const [],
+    this.comment,
+  });
+  final String id;
+  final int rating;
+  final List<String> quickTags;
+  final String? comment;
+
+  factory PlaceReview.fromJson(Object? raw) {
+    final j = _map(raw);
+    return PlaceReview(
+      id: j['id']! as String,
+      rating: _int(j['rating']) ?? 0,
+      quickTags: [...?(j['quickTags'] as List?)?.whereType<String>()],
+      comment: j['comment'] as String?,
+    );
+  }
+}
+
+/// `FeedbackResponse`: one per finalized trip.
+class TripFeedback {
+  const TripFeedback({required this.id, required this.quickTag, this.comment});
+  final String id;
+  final String quickTag;
+  final String? comment;
+
+  factory TripFeedback.fromJson(Object? raw) {
+    final j = _map(raw);
+    return TripFeedback(
+      id: j['id']! as String,
+      quickTag: j['quickTag']! as String,
+      comment: j['comment'] as String?,
+    );
+  }
+}
+
+/// `AlternativePlaceResponse`: a candidate to swap into a draft stop.
+class AlternativePlace {
+  const AlternativePlace({
+    required this.placeId,
+    required this.name,
+    required this.category,
+    required this.costMin,
+    required this.costMax,
+    this.address,
+    this.imageUrl,
+    this.stationName,
+    this.distanceFromStationMeters,
+    this.openingStatus,
+  });
+  final String placeId;
+  final String name;
+  final String category;
+  final double costMin;
+  final double costMax;
+  final String? address;
+  final String? imageUrl;
+  final String? stationName;
+  final int? distanceFromStationMeters;
+
+  /// `Open`, `Closed` or `Unknown`.
+  final String? openingStatus;
+
+  factory AlternativePlace.fromJson(Object? raw) {
+    final j = _map(raw);
+    return AlternativePlace(
+      placeId: j['placeId']! as String,
+      name: j['name']! as String,
+      category: j['category']! as String,
+      costMin: _num(j['estimatedCostMin']),
+      costMax: _num(j['estimatedCostMax']),
+      address: j['address'] as String?,
+      imageUrl: j['imageUrl'] as String?,
+      stationName: j['stationName'] as String?,
+      distanceFromStationMeters: _int(j['distanceFromStationMeters']),
+      openingStatus: j['openingStatus'] as String?,
+    );
+  }
+
+  static List<AlternativePlace> listFromJson(Object? raw) =>
+      raw is List ? raw.map(AlternativePlace.fromJson).toList() : const [];
+}
+
+/// `POST /api/trips/parse-request` result: planner fields the AI read from
+/// a free-text request. Only non-null fields should be applied.
+class ParsedTripRequest {
+  const ParsedTripRequest({
+    required this.isTripRequest,
+    this.message,
+    this.durationHours,
+    this.budgetMax,
+    this.tagIds = const [],
+    this.travelMode,
+    this.startStationOrder,
+    this.destinationStationOrder,
+    this.plannedDate,
+    this.startTime,
+    this.note,
+    this.missing = const [],
+  });
+  final bool isTripRequest;
+  final String? message;
+  final int? durationHours;
+  final double? budgetMax;
+  final List<String> tagIds;
+
+  /// `Auto`, `Walking`, `Motorbike` or `Metro`.
+  final String? travelMode;
+  final int? startStationOrder;
+  final int? destinationStationOrder;
+  final String? plannedDate;
+
+  /// `HH:mm:ss`.
+  final String? startTime;
+  final String? note;
+
+  /// Required fields the text did not mention.
+  final List<String> missing;
+
+  factory ParsedTripRequest.fromJson(Object? raw) {
+    final j = _map(raw);
+    final f = _map(j['fields'] ?? const {});
+    return ParsedTripRequest(
+      isTripRequest: j['isTripRequest'] == true,
+      message: j['message'] as String?,
+      durationHours: _int(f['durationHours']),
+      budgetMax: f['budgetMax'] is num ? _num(f['budgetMax']) : null,
+      tagIds: [...?(f['tagIds'] as List?)?.whereType<String>()],
+      travelMode: f['travelMode'] as String?,
+      startStationOrder: _int(f['startStationOrder']),
+      destinationStationOrder: _int(f['destinationStationOrder']),
+      plannedDate: f['plannedDate'] as String?,
+      startTime: f['startTime'] as String?,
+      note: f['note'] as String?,
+      missing: [...?(j['missing'] as List?)?.whereType<String>()],
+    );
+  }
+}

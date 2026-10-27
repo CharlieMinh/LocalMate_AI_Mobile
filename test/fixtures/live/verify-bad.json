@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/400","title":"Invalid verification code.","status":400,"detail":"Mã xác thực không đúng.","instance":"/api/auth/register/verify","code":"invalid_otp"}

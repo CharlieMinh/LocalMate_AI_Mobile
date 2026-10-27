@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/400","title":"Trip request text is invalid.","status":400,"instance":"/api/trips/parse-request","errors":{"Text":["Hãy mô tả chuyến đi bạn muốn, từ 5 đến 500 ký tự."]},"code":"invalid_parse_request"}
