@@ -58,6 +58,9 @@ class TripsTab extends ConsumerWidget {
       );
     }
     final trips = ref.watch(myTripsProvider);
+    // The empty state fills the viewport itself; inside the ListView below
+    // it would get unbounded height.
+    if (trips.value?.isEmpty ?? false) return const PlannerEntryPage();
     return RefreshIndicator(
       onRefresh: () => ref.refresh(myTripsProvider.future),
       child: ListView(
@@ -86,7 +89,7 @@ class TripsTab extends ConsumerWidget {
               ],
             ),
             data: (items) {
-              if (items.isEmpty) return const PlannerEntryPage();
+              if (items.isEmpty) return const SizedBox.shrink();
               final drafts = items.where((t) => !t.finalized).toList();
               final finals = items.where((t) => t.finalized).toList();
               return Column(
@@ -377,13 +380,13 @@ class _DraftViewState extends ConsumerState<_DraftView> {
     ..invalidate(myTripsProvider);
 
   Future<void> _replace(PlannerTripItemDto item) async {
-    final swapped = await showReplaceStopSheet(
+    // The sheet refreshes the trip itself, even if dismissed mid-request.
+    await showReplaceStopSheet(
       context,
       tripId: widget.trip.id,
       itemId: item.itemId,
       placeName: item.placeName,
     );
-    if (swapped) _refresh();
   }
 
   Future<void> _delete(PlannerTripItemDto item) async {

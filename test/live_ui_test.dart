@@ -602,4 +602,46 @@ void main() {
       'ChIJLUnNLj8vdTERtZ0FtgSj9-A',
     );
   });
+
+  testWidgets('signed-in user with no trips sees the create-trip state', (
+    tester,
+  ) async {
+    backend.noTrips = true;
+    final container = await boot(tester, route: '/trips', signIn: true);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Một hành trình đang chờ bạn'), findsOneWidget);
+    await tap(tester, find.widgetWithText(FilledButton, 'Tạo lịch trình'));
+    expect(find.byKey(const ValueKey('planner-fill')), findsOneWidget);
+    await finish(tester, container);
+  });
+
+  testWidgets('dismissing the AI fill sheet mid-request keeps the planner', (
+    tester,
+  ) async {
+    backend
+      ..aiAvailable = true
+      ..parseGate = Completer<void>();
+    final container = await boot(tester, route: '/home', signIn: true);
+    container.read(routerProvider).push('/planner');
+    await tester.pumpAndSettle();
+    await tap(tester, find.byKey(const ValueKey('planner-fill')));
+    await tester.enterText(
+      find.byKey(const ValueKey('planner-fill-text')),
+      'Đi cà phê quanh ga Tân Cảng 3 tiếng',
+    );
+    await tester.tap(find.byKey(const ValueKey('planner-fill-submit')));
+    await tester.pump();
+    // The submit button spins while the request is pending: no settle.
+    await tester.binding.handlePopRoute(); // system back
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const ValueKey('planner-fill-text')), findsNothing);
+    backend.parseGate!.complete();
+    await tester.pumpAndSettle();
+    // Still on the planner, not popped back to Home.
+    expect(find.byKey(const ValueKey('planner-fill')), findsOneWidget);
+    expect(container.read(plannerFormProvider).durationHours, 4);
+    await finish(tester, container);
+  });
 }

@@ -59,7 +59,8 @@ class _FillSheetState extends ConsumerState<_FillSheet> {
         });
         return;
       }
-      navigator.pop(parsed);
+      // The sheet may have been dismissed while the AI was working.
+      if (mounted) navigator.pop(parsed);
     } on ApiFailure catch (error) {
       if (!mounted) return;
       setState(() {

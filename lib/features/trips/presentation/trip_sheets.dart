@@ -74,6 +74,8 @@ class _StopReviewSheetState extends ConsumerState<_StopReviewSheet> {
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    // The sheet can be dismissed while the request runs.
+    final container = ProviderScope.containerOf(context, listen: false);
     setState(() {
       _busy = true;
       _error = null;
@@ -87,9 +89,9 @@ class _StopReviewSheetState extends ConsumerState<_StopReviewSheet> {
             quickTags: _tags.toList(),
             comment: _comment.text,
           );
-      ref.invalidate(stopReviewProvider(widget.itemId));
+      container.invalidate(stopReviewProvider(widget.itemId));
       AppHaptics.success();
-      navigator.pop();
+      if (mounted) navigator.pop();
       _toast(messenger, 'Cảm ơn bạn đã đánh giá ${widget.placeName}.');
     } on ApiFailure catch (error) {
       if (!mounted) return;
@@ -107,10 +109,11 @@ class _StopReviewSheetState extends ConsumerState<_StopReviewSheet> {
       _busy = true;
       _error = null;
     });
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(tripsRepositoryProvider).deleteReview(widget.itemId);
-      ref.invalidate(stopReviewProvider(widget.itemId));
-      navigator.pop();
+      container.invalidate(stopReviewProvider(widget.itemId));
+      if (mounted) navigator.pop();
       _toast(messenger, 'Đã xoá đánh giá.');
     } on ApiFailure catch (error) {
       if (!mounted) return;
@@ -303,6 +306,7 @@ class _TripFeedbackSheetState extends ConsumerState<_TripFeedbackSheet> {
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final container = ProviderScope.containerOf(context, listen: false);
     setState(() {
       _busy = true;
       _error = null;
@@ -315,9 +319,9 @@ class _TripFeedbackSheetState extends ConsumerState<_TripFeedbackSheet> {
             quickTag: _tag!,
             comment: _comment.text,
           );
-      ref.invalidate(tripFeedbackProvider(widget.tripId));
+      container.invalidate(tripFeedbackProvider(widget.tripId));
       AppHaptics.success();
-      navigator.pop();
+      if (mounted) navigator.pop();
       _toast(messenger, 'Cảm ơn bạn đã góp ý cho chuyến đi.');
     } on ApiFailure catch (error) {
       if (!mounted) return;
@@ -453,6 +457,7 @@ class _ReplaceStopSheetState extends ConsumerState<_ReplaceStopSheet> {
   Future<void> _pick(AlternativePlace place) async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final container = ProviderScope.containerOf(context, listen: false);
     setState(() {
       _busyId = place.placeId;
       _error = null;
@@ -461,8 +466,11 @@ class _ReplaceStopSheetState extends ConsumerState<_ReplaceStopSheet> {
       final warnings = await ref
           .read(tripsRepositoryProvider)
           .replaceItem(widget.tripId, widget.itemId, place.placeId);
+      container
+        ..invalidate(tripDetailProvider(widget.tripId))
+        ..invalidate(myTripsProvider);
       AppHaptics.success();
-      navigator.pop(true);
+      if (mounted) navigator.pop(true);
       _toast(
         messenger,
         warnings.isEmpty

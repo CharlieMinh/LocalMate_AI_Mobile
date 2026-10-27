@@ -64,7 +64,9 @@ class _CheckoutSheetState extends ConsumerState<_CheckoutSheet> {
       final opened = await ref.read(externalUrlOpenerProvider)(
         intent.checkoutUrl,
       );
-      navigator.pop();
+      // The order exists even if the sheet was dismissed meanwhile, so the
+      // status page still opens; only a still-open sheet is popped.
+      if (mounted) navigator.pop();
       unawaited(
         router.push(
           '/payment-return?orderId=${intent.orderId}&flow=subscription',

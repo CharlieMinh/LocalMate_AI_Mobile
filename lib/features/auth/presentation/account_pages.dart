@@ -625,7 +625,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       messenger.showSnackBar(
         const SnackBar(content: Text('Đã lưu hồ sơ của bạn.')),
       );
-      if (navigator.canPop()) navigator.pop();
+      if (mounted && navigator.canPop()) navigator.pop();
     } on ApiFailure catch (e) {
       if (mounted) {
         setState(() {

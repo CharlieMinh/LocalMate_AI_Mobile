@@ -1,6 +1,7 @@
 // Live-mode harness: the app runs its backend code paths (AppConfig with an
 // API base URL) while requests are answered with JSON captured from the
 // real backend (test/fixtures/live).
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -64,6 +65,12 @@ class LiveBackend {
   /// AI is off on the dev backend (no Gemini key); flip to use the
   /// contract-shaped success below.
   bool aiAvailable = false;
+
+  /// When set, `parse-request` waits for it (to dismiss the sheet meanwhile).
+  Completer<void>? parseGate;
+
+  /// A signed-in user with no saved trips.
+  bool noTrips = false;
   bool notificationRead = false;
 
   /// The dev backend has no PayOS config (502). When true, checkout answers
@@ -174,7 +181,9 @@ class LiveBackend {
     'GET /subscription/plans': (_) => reply(liveJson('plans')),
     'GET /subscription/me': (_) => reply(liveJson('subscription-me')),
     'GET /trips/my-trips': (_) => reply(
-      finalized
+      noTrips
+          ? '[]'
+          : finalized
           ? liveJson('my-trips').replaceFirst('"Draft"', '"Finalized"')
           : liveJson('my-trips'),
     ),
@@ -218,33 +227,36 @@ class LiveBackend {
         _write('delete-item', r, reply(liveJson('delete-item'))),
     'POST /trips/$tripId/explanations': (r) =>
         _write('explain', r, reply(liveJson('explanations'), status: 503)),
-    'POST /trips/parse-request': (r) => _write(
-      'parse',
-      r,
-      aiAvailable
-          // Shape from the backend contract (ParseTripRequestResponse);
-          // not captured because the dev backend has no AI key.
-          ? reply(
-              jsonEncode({
-                'isTripRequest': true,
-                'message': null,
-                'fields': {
-                  'durationHours': 3,
-                  'budgetMax': 200000,
-                  'tagIds': <String>[],
-                  'travelMode': 'Walking',
-                  'startStationOrder': 3,
-                  'destinationStationOrder': null,
-                  'plannedDate': null,
-                  'startTime': '14:00:00',
-                  'note': 'Cà phê yên tĩnh',
-                },
-                'missing': <String>[],
-                'changed': ['durationHours', 'budgetMax'],
-              }),
-            )
-          : reply(liveJson('explanations'), status: 503),
-    ),
+    'POST /trips/parse-request': (r) async {
+      await parseGate?.future;
+      return _write(
+        'parse',
+        r,
+        aiAvailable
+            // Shape from the backend contract (ParseTripRequestResponse);
+            // not captured because the dev backend has no AI key.
+            ? reply(
+                jsonEncode({
+                  'isTripRequest': true,
+                  'message': null,
+                  'fields': {
+                    'durationHours': 3,
+                    'budgetMax': 200000,
+                    'tagIds': <String>[],
+                    'travelMode': 'Walking',
+                    'startStationOrder': 3,
+                    'destinationStationOrder': null,
+                    'plannedDate': null,
+                    'startTime': '14:00:00',
+                    'note': 'Cà phê yên tĩnh',
+                  },
+                  'missing': <String>[],
+                  'changed': ['durationHours', 'budgetMax'],
+                }),
+              )
+            : reply(liveJson('explanations'), status: 503),
+      );
+    },
     'POST /auth/register': (r) =>
         (r.data as Map)['email'] == 'user1@localmate.dev'
         ? reply(liveJson('register-dup'), status: 409)
