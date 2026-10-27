@@ -221,13 +221,13 @@ void main() {
         find.byKey(const ValueKey('account-section-Sở thích của bạn')),
       );
       await shot('personalize');
-      await tester.binding.handlePopRoute();
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       await tapIt(
         find.byKey(const ValueKey('account-section-Gói & quyền sử dụng')),
       );
       await shot('plans');
-      await tester.binding.handlePopRoute();
+      await tester.tap(find.byTooltip('Quay lại'));
       await tester.pumpAndSettle();
       await tapIt(find.text('Giao diện'));
       await shot('appearance-sheet');

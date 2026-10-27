@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/network/api_failure.dart';
+import '../../../core/network/api_messages.dart';
+import '../../trips/application/trips_providers.dart';
+import '../data/api_planner_repository.dart';
 import '../../../core/session/session_scope.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/offline_planner_repository.dart';
@@ -38,7 +41,9 @@ final plannerNowProvider = Provider<DateTime Function()>(
       () => DateTime.now().toUtc(),
 );
 final plannerRepositoryProvider = Provider<PlannerRepository>(
-  (ref) => const OfflinePlannerRepository(),
+  (ref) => ref.watch(configProvider).mockOnly
+      ? const OfflinePlannerRepository()
+      : ApiPlannerRepository(ref.watch(tripsRepositoryProvider)),
 );
 final plannerTagsProvider = FutureProvider.autoDispose<List<PlannerTag>>((ref) {
   final token = CancelToken();
@@ -124,8 +129,23 @@ class PlannerController extends Notifier<PlannerState> {
       if (!_current(operation, owner, lease) || token.isCancelled) return null;
       state = PlannerState(phase: PlannerPhase.ready, preview: preview);
       return preview;
-    } catch (_) {
+    } catch (error) {
       if (!_current(operation, owner, lease) || token.isCancelled) return null;
+      if (error is ApiFailure && !ref.read(configProvider).mockOnly) {
+        state = PlannerState(
+          phase: PlannerPhase.error,
+          failure: error,
+          errors: {
+            for (final e in error.fields.entries)
+              if (e.value.isNotEmpty) e.key: e.value.first,
+          },
+          message: apiErrorMessage(
+            error,
+            fallback: 'Chưa tạo được lịch trình. Bạn có thể thử lại.',
+          ),
+        );
+        return null;
+      }
       state = const PlannerState(
         phase: PlannerPhase.error,
         failure: ApiFailure(FailureKind.unavailable),

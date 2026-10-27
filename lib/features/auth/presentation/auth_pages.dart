@@ -8,6 +8,10 @@ import '../../../core/network/api_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../../core/network/api_messages.dart';
+import '../../../shared/formatters.dart';
+import '../../trips/application/trips_providers.dart';
+import '../../trips/domain/trip_models.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_contracts.dart';
 
@@ -84,6 +88,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final auth = ref.watch(authProvider);
     final busy =
         auth.phase == AuthPhase.submitting || auth.phase == AuthPhase.restoring;
+    final live = ref.watch(liveBackendProvider);
     final text = context.textStyles;
     final scheme = context.colors;
     return Scaffold(
@@ -194,47 +199,52 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       buttonKey: const Key('login-submit'),
                       label: busy
                           ? 'Đang xử lý…'
-                          : auth.error == null
-                          ? 'Đăng nhập mẫu'
-                          : 'Thử đăng nhập lại',
+                          : auth.error != null
+                          ? 'Thử đăng nhập lại'
+                          : live
+                          ? 'Đăng nhập'
+                          : 'Đăng nhập mẫu',
                       icon: LucideIcons.logIn,
                       loading: busy,
                       expand: true,
                       haptic: true,
                       onPressed: busy ? null : _submit,
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Flexible(
-                          flex: 3,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                            ),
-                            child: Text(
-                              'hoặc dùng thông tin mẫu',
-                              textAlign: TextAlign.center,
-                              style: text.bodySmall,
+                    if (live) const SizedBox(height: AppSpacing.lg),
+                    if (!live) ...[
+                      const SizedBox(height: AppSpacing.xl),
+                      Row(
+                        children: [
+                          const Expanded(child: Divider()),
+                          Flexible(
+                            flex: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                              ),
+                              child: Text(
+                                'hoặc dùng thông tin mẫu',
+                                textAlign: TextAlign.center,
+                                style: text.bodySmall,
+                              ),
                             ),
                           ),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    AppButton.tonal(
-                      label: 'Điền tài khoản mẫu',
-                      icon: LucideIcons.flaskConical,
-                      expand: true,
-                      onPressed: busy
-                          ? null
-                          : () {
-                              _email.text = 'traveler@localmate.invalid';
-                              _password.text = 'offline-only';
-                            },
-                    ),
+                          const Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      AppButton.tonal(
+                        label: 'Điền tài khoản mẫu',
+                        icon: LucideIcons.flaskConical,
+                        expand: true,
+                        onPressed: busy
+                            ? null
+                            : () {
+                                _email.text = 'traveler@localmate.invalid';
+                                _password.text = 'offline-only';
+                              },
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.sm),
                     const Tooltip(
                       message: 'Google OAuth chưa được cấu hình hoặc xác minh',
@@ -247,16 +257,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Google chưa khả dụng trong bản offline.',
+                      live
+                          ? 'Đăng nhập Google sẽ có trong bản cập nhật tới.'
+                          : 'Google chưa khả dụng trong bản offline.',
                       textAlign: TextAlign.center,
                       style: text.bodySmall,
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    const AppBanner(
-                      kind: BannerKind.warning,
-                      icon: LucideIcons.flaskConical,
-                      message: 'Chỉ tài khoản mẫu. Không xác thực với Backend.',
-                    ),
+                    if (!live) ...[
+                      const SizedBox(height: AppSpacing.xl),
+                      const AppBanner(
+                        kind: BannerKind.warning,
+                        icon: LucideIcons.flaskConical,
+                        message:
+                            'Chỉ tài khoản mẫu. Không xác thực với Backend.',
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -284,6 +299,10 @@ class AuthAccountPage extends ConsumerWidget {
     final text = context.textStyles;
     final scheme = context.colors;
     final restoring = auth.phase == AuthPhase.restoring;
+    final live = ref.watch(liveBackendProvider);
+    final sub = live ? ref.watch(subscriptionProvider).asData?.value : null;
+    String quota(int used, int? limit) =>
+        '$used / ${limit ?? 'không giới hạn'}';
 
     final body = _Narrow(
       maxWidth: AppSpacing.maxContentWidth,
@@ -317,10 +336,16 @@ class AuthAccountPage extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             StatusChip(
-                              label: auth.authenticated
+                              label: live
+                                  ? (auth.authenticated
+                                        ? 'Đã đăng nhập'
+                                        : 'Chưa đăng nhập')
+                                  : auth.authenticated
                                   ? 'Tài khoản mẫu · Offline'
                                   : 'Trải nghiệm offline',
-                              icon: LucideIcons.flaskConical,
+                              icon: live
+                                  ? LucideIcons.user
+                                  : LucideIcons.flaskConical,
                               kind: StatusKind.info,
                             ),
                           ],
@@ -335,19 +360,29 @@ class AuthAccountPage extends ConsumerWidget {
                     ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
-                  const Row(
+                  Row(
                     children: [
                       Expanded(
                         child: _AccountStat(
                           icon: LucideIcons.bookmark,
                           label: 'Lịch trình đã lưu',
+                          value: sub == null
+                              ? null
+                              : quota(sub.savedUsed, sub.savedLimit),
                         ),
                       ),
-                      SizedBox(width: AppSpacing.md),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: _AccountStat(
-                          icon: LucideIcons.circleCheck,
-                          label: 'Lịch trình đã chốt',
+                          icon: sub == null
+                              ? LucideIcons.circleCheck
+                              : LucideIcons.sparkles,
+                          label: sub == null
+                              ? 'Lịch trình đã chốt'
+                              : 'Lượt tạo tháng này',
+                          value: sub == null
+                              ? null
+                              : quota(sub.generateUsed, sub.generateLimit),
                         ),
                       ),
                     ],
@@ -355,7 +390,7 @@ class AuthAccountPage extends ConsumerWidget {
                   if (!auth.authenticated && !restoring) ...[
                     const SizedBox(height: AppSpacing.lg),
                     AppButton(
-                      label: 'Đăng nhập offline',
+                      label: live ? 'Đăng nhập' : 'Đăng nhập offline',
                       icon: LucideIcons.logIn,
                       expand: true,
                       onPressed: () => context.go('/login'),
@@ -364,18 +399,23 @@ class AuthAccountPage extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            const AppBanner(
-              icon: LucideIcons.flaskConical,
-              message: 'Phiên mô phỏng, không phải danh tính đã xác thực.',
-            ),
+            if (!live) ...[
+              const SizedBox(height: AppSpacing.md),
+              const AppBanner(
+                icon: LucideIcons.flaskConical,
+                message: 'Phiên mô phỏng, không phải danh tính đã xác thực.',
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             _SectionCard(
               title: 'Sở thích của bạn',
               icon: LucideIcons.heart,
               onOpen: () => _push(context, const PersonalizationPage()),
               child: Text(
-                'Chưa có sở thích tài khoản được đồng bộ.',
+                live && auth.authenticated
+                    ? '${profile!.interestTagIds.length} sở thích · '
+                          '${profile.travelStyleTagIds.length} phong cách đã lưu'
+                    : 'Chưa có sở thích tài khoản được đồng bộ.',
                 style: text.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -391,14 +431,30 @@ class AuthAccountPage extends ConsumerWidget {
                 runSpacing: AppSpacing.xs,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  const StatusChip(
-                    label: 'Chưa xác minh',
-                    kind: StatusKind.draft,
-                  ),
-                  Text(
-                    'Gói dịch vụ và hạn mức chưa được kết nối.',
-                    style: text.bodySmall,
-                  ),
+                  if (sub != null) ...[
+                    StatusChip(
+                      label: sub.planName,
+                      kind: StatusKind.info,
+                      icon: LucideIcons.crown,
+                    ),
+                    Text(
+                      'Đã tạo ${quota(sub.generateUsed, sub.generateLimit)} lịch trình tháng này',
+                      style: text.bodySmall,
+                    ),
+                  ] else ...[
+                    StatusChip(
+                      label: live && !auth.authenticated
+                          ? 'Cần đăng nhập'
+                          : 'Chưa xác minh',
+                      kind: StatusKind.draft,
+                    ),
+                    Text(
+                      live
+                          ? 'Đăng nhập để xem gói và hạn mức.'
+                          : 'Gói dịch vụ và hạn mức chưa được kết nối.',
+                      style: text.bodySmall,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -574,16 +630,23 @@ class _Card extends StatelessWidget {
   const _Card({
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.highlighted = false,
   });
   final Widget child;
   final EdgeInsets padding;
+
+  /// Primary 2px outline (e.g. the user's current plan).
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
       color: context.colors.surface,
       borderRadius: AppRadius.card,
-      border: Border.all(color: context.colors.outline),
+      border: Border.all(
+        color: highlighted ? context.colors.primary : context.colors.outline,
+        width: highlighted ? AppSizes.focusRing : AppSizes.hairline,
+      ),
     ),
     child: ClipRRect(
       borderRadius: AppRadius.card,
@@ -597,13 +660,16 @@ class _Card extends StatelessWidget {
 }
 
 class _AccountStat extends StatelessWidget {
-  const _AccountStat({required this.icon, required this.label});
+  const _AccountStat({required this.icon, required this.label, this.value});
   final IconData icon;
   final String label;
 
+  /// Null when the backend has not provided the number (mock / signed out).
+  final String? value;
+
   @override
   Widget build(BuildContext context) => Semantics(
-    label: '$label: chưa có dữ liệu',
+    label: '$label: ${value ?? 'chưa có dữ liệu'}',
     excludeSemantics: true,
     child: Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -617,7 +683,12 @@ class _AccountStat extends StatelessWidget {
           Icon(icon, size: AppSizes.icon, color: context.colors.primary),
           const SizedBox(height: AppSpacing.sm),
           Text(label, style: context.textStyles.labelMedium),
-          Text('Chưa đồng bộ', style: context.textStyles.bodySmall),
+          Text(
+            value ?? 'Chưa đồng bộ',
+            style: value == null
+                ? context.textStyles.bodySmall
+                : context.textStyles.titleSmall,
+          ),
         ],
       ),
     ),
@@ -776,9 +847,17 @@ class PersonalizationPage extends ConsumerWidget {
                     padding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const AppBanner(
-                    message: 'Chưa có dữ liệu sở thích tài khoản. Bạn vẫn có thể chọn sở thích riêng khi tạo lịch trình mẫu.',
-                  ),
+                  if (ref.watch(liveBackendProvider) && session.authenticated)
+                    _SavedTags(
+                      ids: [
+                        ...session.profile!.interestTagIds,
+                        ...session.profile!.travelStyleTagIds,
+                      ],
+                    )
+                  else
+                    const AppBanner(
+                      message: 'Chưa có dữ liệu sở thích tài khoản. Bạn vẫn có thể chọn sở thích riêng khi tạo lịch trình mẫu.',
+                    ),
                   const SizedBox(height: AppSpacing.xl),
                   const SectionHeader(
                     title: 'Phong cách du lịch',
@@ -803,11 +882,14 @@ class PersonalizationPage extends ConsumerWidget {
 
 /// "Gói & quyền sử dụng": honest unavailable state until the subscription
 /// endpoints are wired (Phase 4). Never shows invented prices.
-class PlansPage extends StatelessWidget {
+class PlansPage extends ConsumerWidget {
   const PlansPage({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) =>
+      ref.watch(liveBackendProvider) ? const _LivePlansPage() : _mock(context);
+
+  Widget _mock(BuildContext context) => Scaffold(
     appBar: const AppTopBar(title: 'Gói & quyền sử dụng'),
     body: SafeArea(
       top: false,
@@ -893,6 +975,265 @@ class _PlanCard extends StatelessWidget {
             'Chưa tải giá và quyền lợi. Không có thao tác mua trong bản offline.',
             style: text.bodySmall,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Saved preference tags rendered by name (`GET /api/tags`).
+class _SavedTags extends ConsumerWidget {
+  const _SavedTags({required this.ids});
+  final List<String> ids;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ids.isEmpty) {
+      return const AppBanner(
+        message: 'Bạn chưa lưu sở thích nào. Bạn vẫn có thể chọn sở thích riêng khi tạo lịch trình.',
+      );
+    }
+    final tags = ref.watch(tagOptionsProvider).asData?.value ?? const [];
+    final names = {for (final t in tags) t.id: t.name};
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: [
+        for (final id in ids)
+          StatusChip(
+            label: names[id] ?? 'Đang tải…',
+            kind: StatusKind.info,
+            icon: LucideIcons.heart,
+          ),
+      ],
+    );
+  }
+}
+
+/// Plans and the signed-in user's usage from the backend.
+// TODO(phase-5): PayOS checkout (`POST /subscription/checkout`, order polling).
+class _LivePlansPage extends ConsumerWidget {
+  const _LivePlansPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plans = ref.watch(plansProvider);
+    final sub = ref.watch(subscriptionProvider).asData?.value;
+    final text = context.textStyles;
+    return Scaffold(
+      appBar: const AppTopBar(title: 'Gói & quyền sử dụng'),
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
+          onRefresh: () => ref.refresh(plansProvider.future),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(AppSpacing.gutter),
+            children: [
+              _Narrow(
+                maxWidth: AppSpacing.maxContentWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SectionHeader(
+                      title: 'Gói hiện tại',
+                      padding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (sub == null)
+                      const AppBanner(
+                        kind: BannerKind.warning,
+                        message: 'Đăng nhập để xem gói và hạn mức của bạn.',
+                      )
+                    else
+                      _UsageCard(sub: sub),
+                    const SizedBox(height: AppSpacing.xl),
+                    const SectionHeader(
+                      title: 'Các gói dịch vụ',
+                      padding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    plans.when(
+                      skipLoadingOnRefresh: false,
+                      loading: () => const Column(
+                        children: [
+                          SkeletonBlock(
+                            height: AppSpacing.xxxl * 2,
+                            radius: AppRadius.lg,
+                          ),
+                          SizedBox(height: AppSpacing.md),
+                          SkeletonBlock(
+                            height: AppSpacing.xxxl * 2,
+                            radius: AppRadius.lg,
+                          ),
+                        ],
+                      ),
+                      error: (error, _) => AppErrorState(
+                        compact: true,
+                        title: 'Chưa tải được bảng giá',
+                        message: error is ApiFailure
+                            ? apiErrorMessage(error)
+                            : 'Vui lòng thử lại.',
+                        onRetry: () => ref.invalidate(plansProvider),
+                      ),
+                      data: (items) => Column(
+                        children: [
+                          for (final plan in items)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: AppSpacing.md,
+                              ),
+                              child: _LivePlanCard(
+                                plan: plan,
+                                current: sub?.plan == plan.code,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Thanh toán qua PayOS sẽ có trong bản cập nhật tới.',
+                      style: text.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UsageCard extends StatelessWidget {
+  const _UsageCard({required this.sub});
+  final SubscriptionStatus sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.textStyles;
+    Widget bar(String label, int used, int? limit) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(label, style: text.bodySmall)),
+              Text(
+                '$used / ${limit ?? 'không giới hạn'}',
+                style: text.labelMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          LinearProgressIndicator(
+            value: limit == null || limit == 0
+                ? 0
+                : (used / limit).clamp(0, 1).toDouble(),
+            semanticsLabel: label,
+          ),
+        ],
+      ),
+    );
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(LucideIcons.crown, color: context.appColors.warning),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(sub.planName, style: text.titleMedium)),
+              if (sub.isTrial)
+                const StatusChip(label: 'Dùng thử', kind: StatusKind.draft),
+            ],
+          ),
+          bar(
+            'Lượt tạo lịch trình tháng này',
+            sub.generateUsed,
+            sub.generateLimit,
+          ),
+          bar('Lịch trình đã lưu', sub.savedUsed, sub.savedLimit),
+          bar('Lượt AI hôm nay', sub.aiDailyUsed, sub.aiDailyLimit),
+        ],
+      ),
+    );
+  }
+}
+
+class _LivePlanCard extends StatelessWidget {
+  const _LivePlanCard({required this.plan, required this.current});
+  final SubscriptionPlan plan;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.appColors;
+    final text = context.textStyles;
+    String limit(int? v, String unit) =>
+        v == null ? 'Không giới hạn $unit' : '$v $unit';
+    return _Card(
+      highlighted: current,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: AppSizes.avatar,
+                height: AppSizes.avatar,
+                decoration: BoxDecoration(
+                  color: app.warningContainer,
+                  borderRadius: AppRadius.control,
+                ),
+                child: Icon(
+                  plan.price == 0 ? LucideIcons.leaf : LucideIcons.crown,
+                  color: app.onWarningContainer,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: Text(plan.name, style: text.titleMedium)),
+              if (current)
+                const StatusChip(
+                  label: 'Đang dùng',
+                  kind: StatusKind.finalized,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            plan.price == 0
+                ? 'Miễn phí'
+                : '${formatVnd(plan.price)}đ'
+                      '${plan.durationDays == null ? '' : ' / ${plan.durationDays} ngày'}',
+            style: text.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final line in [
+            limit(plan.generateLimit, 'lượt tạo / tháng'),
+            limit(plan.savedTripLimit, 'lịch trình được lưu'),
+            if (plan.aiDailyCallLimit != null)
+              '${plan.aiDailyCallLimit} lượt AI / ngày',
+            ...plan.features,
+          ])
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    LucideIcons.check,
+                    size: AppSizes.iconSm,
+                    color: app.success,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: Text(line, style: text.bodySmall)),
+                ],
+              ),
+            ),
         ],
       ),
     );

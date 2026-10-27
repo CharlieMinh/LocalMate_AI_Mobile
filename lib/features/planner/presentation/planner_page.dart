@@ -12,6 +12,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../discovery/data/station_fixture_data.dart';
 import '../../discovery/domain/discovery_models.dart';
 import '../../discovery/presentation/station_picker.dart';
+import '../../trips/application/trips_providers.dart';
 import '../application/planner_controller.dart';
 import '../application/planner_form_controller.dart';
 import '../data/offline_planner_repository.dart';
@@ -274,6 +275,18 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
         });
         return;
       case PlannerReady(:final criteria, :final availableTags):
+        if (ref.read(liveBackendProvider) &&
+            !ref.read(authProvider).authenticated) {
+          final login = await showAppConfirmSheet(
+            context: context,
+            title: 'Đăng nhập để tạo lịch trình',
+            message: 'Lịch trình được lưu theo tài khoản để bạn xem lại và chốt sau.',
+            confirmLabel: 'Đăng nhập',
+            confirmIcon: LucideIcons.logIn,
+          );
+          if (login && mounted) await context.push('/login');
+          return;
+        }
         final preview = await ref
             .read(plannerProvider.notifier)
             .submit(criteria, availableTags: availableTags);
@@ -284,7 +297,9 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
         }
         AppHaptics.success();
         await context.push(
-          '/planner/preview/${Uri.encodeComponent(preview.localKey)}',
+          preview.tripId != null
+              ? '/trips/${Uri.encodeComponent(preview.tripId!)}'
+              : '/planner/preview/${Uri.encodeComponent(preview.localKey)}',
         );
     }
   }
@@ -295,6 +310,7 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     final f = ref.watch(plannerFormProvider);
     final catalog = ref.watch(plannerTagsProvider);
     final busy = state.phase == PlannerPhase.processing;
+    final live = ref.watch(liveBackendProvider);
     final blocked =
         f.step >= 2 &&
         (catalog.isLoading || (catalog.hasError && f.tags.isNotEmpty));
@@ -322,7 +338,7 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
       },
       child: Scaffold(
         appBar: AppTopBar(
-          title: 'Tạo lịch trình mẫu',
+          title: live ? 'Tạo lịch trình' : 'Tạo lịch trình mẫu',
           onBack: back,
           backTooltip: 'Quay lại',
         ),
@@ -393,9 +409,9 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                 children: [
                   AppButton(
                     label: busy
-                        ? 'Đang tạo bản mẫu…'
+                        ? (live ? 'Đang tạo lịch trình…' : 'Đang tạo bản mẫu…')
                         : f.isLastStep
-                        ? 'Xem lịch trình mẫu'
+                        ? (live ? 'Tạo lịch trình' : 'Xem lịch trình mẫu')
                         : 'Tiếp tục',
                     icon: f.isLastStep ? LucideIcons.sparkles : null,
                     trailingIcon: f.isLastStep ? null : LucideIcons.arrowRight,
@@ -528,15 +544,18 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
-class _OfflineNotice extends StatelessWidget {
+class _OfflineNotice extends ConsumerWidget {
   const _OfflineNotice();
   @override
-  Widget build(BuildContext context) => const AppBanner(
-    kind: BannerKind.warning,
-    icon: LucideIcons.flaskConical,
-    title: 'Chế độ offline',
-    message: 'Chỉ xem lịch trình mẫu. Không gọi AI, không lưu Trip, không tiêu hao lượt dùng.',
-  );
+  Widget build(BuildContext context, WidgetRef ref) =>
+      ref.watch(liveBackendProvider)
+      ? const SizedBox.shrink()
+      : const AppBanner(
+          kind: BannerKind.warning,
+          icon: LucideIcons.flaskConical,
+          title: 'Chế độ offline',
+          message: 'Chỉ xem lịch trình mẫu. Không gọi AI, không lưu Trip, không tiêu hao lượt dùng.',
+        );
 }
 
 class _LocationStep extends ConsumerWidget {

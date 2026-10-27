@@ -17,6 +17,8 @@ import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/auth_pages.dart';
 import '../features/discovery/presentation/discovery_pages.dart';
 import '../features/discovery/presentation/metro_pages.dart';
+import '../features/trips/presentation/trips_pages.dart';
+import 'providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRouterRefresh();
@@ -51,9 +53,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/private',
-        builder: (_, _) => const Scaffold(
-          appBar: AppTopBar(title: 'Phiên tài khoản mẫu'),
-          body: SafeArea(top: false, child: AuthAccountPage(showHeader: false)),
+        builder: (_, _) => Scaffold(
+          appBar: AppTopBar(
+            title: ref.read(configProvider).mockOnly
+                ? 'Phiên tài khoản mẫu'
+                : 'Tài khoản của bạn',
+          ),
+          body: const SafeArea(
+            top: false,
+            child: AuthAccountPage(showHeader: false),
+          ),
         ),
       ),
       ShellRoute(
@@ -68,10 +77,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 Destination.home => const DiscoveryHomePage(),
                 Destination.explore => const ExplorePage(),
                 Destination.metro => const MetroPage(),
-                Destination.trips => const PlannerEntryPage(),
+                Destination.trips => const TripsTab(),
               },
             ),
         ],
+      ),
+      GoRoute(
+        path: '/trips/:id',
+        builder: (_, state) => TripDetailPage(state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/places/:id',
