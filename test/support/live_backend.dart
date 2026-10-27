@@ -46,6 +46,10 @@ class LiveBackend {
   bool generateQuotaExceeded = false;
   bool reviewed = false;
   bool feedbackGiven = false;
+
+  /// AI is off on the dev backend (no Gemini key); flip to use the
+  /// contract-shaped success below.
+  bool aiAvailable = false;
   final calls = <String>[];
 
   /// Decoded JSON bodies of write requests, keyed like [calls].
@@ -120,6 +124,33 @@ class LiveBackend {
         _write('delete-item', r, reply(liveJson('delete-item'))),
     'POST /trips/$tripId/explanations': (r) =>
         _write('explain', r, reply(liveJson('explanations'), status: 503)),
+    'POST /trips/parse-request': (r) => _write(
+      'parse',
+      r,
+      aiAvailable
+          // Shape from the backend contract (ParseTripRequestResponse);
+          // not captured because the dev backend has no AI key.
+          ? reply(
+              jsonEncode({
+                'isTripRequest': true,
+                'message': null,
+                'fields': {
+                  'durationHours': 3,
+                  'budgetMax': 200000,
+                  'tagIds': <String>[],
+                  'travelMode': 'Walking',
+                  'startStationOrder': 3,
+                  'destinationStationOrder': null,
+                  'plannedDate': null,
+                  'startTime': '14:00:00',
+                  'note': 'Cà phê yên tĩnh',
+                },
+                'missing': <String>[],
+                'changed': ['durationHours', 'budgetMax'],
+              }),
+            )
+          : reply(liveJson('explanations'), status: 503),
+    ),
     'POST /trips/generate': (_) {
       calls.add('generate');
       return generateQuotaExceeded

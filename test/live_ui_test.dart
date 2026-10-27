@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:localmate_ai_mobile/app/localmate_app.dart';
 import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
+import 'package:localmate_ai_mobile/features/planner/application/planner_form_controller.dart';
+import 'package:localmate_ai_mobile/features/planner/domain/planner_criteria.dart';
 
 import 'support/live_backend.dart';
 
@@ -233,6 +235,43 @@ void main() {
     expect(backend.calls, contains('explain'));
     expect(
       find.text('AI đang tạm thời không khả dụng. Vui lòng thử lại sau.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await finish(tester, container);
+  });
+
+  testWidgets('planner "Điền giúp tôi" fills the wizard from text', (
+    tester,
+  ) async {
+    final container = await boot(tester, route: '/home', signIn: true);
+    container.read(routerProvider).push('/planner');
+    await tester.pumpAndSettle();
+    await tap(tester, find.byKey(const ValueKey('planner-fill')));
+    await tester.enterText(
+      find.byKey(const ValueKey('planner-fill-text')),
+      'Đi cà phê quanh ga Tân Cảng 3 tiếng',
+    );
+    // AI off on the server: the error stays in the sheet.
+    await tap(tester, find.byKey(const ValueKey('planner-fill-submit')));
+    expect(
+      find.text('AI đang tạm thời không khả dụng. Vui lòng thử lại sau.'),
+      findsOneWidget,
+    );
+    backend.aiAvailable = true;
+    await tap(tester, find.byKey(const ValueKey('planner-fill-submit')));
+    expect(backend.bodies['parse'], {
+      'text': 'Đi cà phê quanh ga Tân Cảng 3 tiếng',
+    });
+    final form = container.read(plannerFormProvider);
+    expect(form.origin, 3);
+    expect(form.durationHours, 3);
+    expect(form.budget, '200000');
+    expect(form.mode, PlannerTravelMode.walking);
+    expect(form.time, '14:00');
+    expect(form.note, 'Cà phê yên tĩnh');
+    expect(
+      find.text('Đã điền sẵn thông tin. Hãy xem lại từng bước.'),
       findsOneWidget,
     );
     await tester.pump(const Duration(seconds: 5));

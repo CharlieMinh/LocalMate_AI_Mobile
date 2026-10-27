@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_controller.dart';
+import '../../trips/domain/trip_models.dart';
 import '../data/offline_planner_repository.dart';
 import '../domain/planner_criteria.dart';
 
@@ -139,6 +140,34 @@ class PlannerFormController extends Notifier<PlannerFormState> {
   void setTime(String value) => state = state.copyWith(time: value);
   void setBudget(String value) => state = state.copyWith(budget: value);
   void setNote(String value) => state = state.copyWith(note: value);
+
+  /// Applies AI-parsed fields ("Điền giúp tôi") and returns to the first
+  /// step so the user reviews every choice. Missing fields keep their value.
+  void applyParsed(ParsedTripRequest p) {
+    final mode = switch (p.travelMode) {
+      'Walking' => PlannerTravelMode.walking,
+      'Motorbike' => PlannerTravelMode.motorbike,
+      'Metro' => PlannerTravelMode.metro,
+      'Auto' => PlannerTravelMode.auto,
+      _ => null,
+    };
+    final time = p.startTime;
+    state = state.copyWith(
+      step: 0,
+      origin: p.startStationOrder,
+      destination: p.destinationStationOrder == null
+          ? null
+          : () => p.destinationStationOrder,
+      durationHours: p.durationHours,
+      mode: mode,
+      tags: p.tagIds.isEmpty ? null : p.tagIds.toSet(),
+      date: p.plannedDate,
+      time: time != null && time.length >= 5 ? time.substring(0, 5) : null,
+      budget: p.budgetMax?.round().toString(),
+      note: p.note,
+      errors: const {},
+    );
+  }
 
   void toggleTag(String id) {
     final tags = {...state.tags};

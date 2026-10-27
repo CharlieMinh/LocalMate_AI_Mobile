@@ -17,6 +17,7 @@ import '../application/planner_controller.dart';
 import '../application/planner_form_controller.dart';
 import '../data/offline_planner_repository.dart';
 import '../domain/planner_criteria.dart';
+import 'planner_fill_sheet.dart';
 import 'planner_format.dart';
 
 export 'itinerary_preview_page.dart';
@@ -248,6 +249,31 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     }
   }
 
+  Future<void> fill() async {
+    final parsed = await showPlannerFillSheet(context);
+    if (parsed == null || !mounted) return;
+    form.applyParsed(parsed);
+    final f = ref.read(plannerFormProvider);
+    budget.text = f.budget;
+    note.text = f.note;
+    setState(() => reverse = true);
+    const names = {
+      'durationHours': 'thời lượng',
+      'budgetMax': 'ngân sách',
+      'startLocation': 'ga xuất phát',
+    };
+    final missing = [for (final m in parsed.missing) ?names[m]];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          missing.isEmpty
+              ? 'Đã điền sẵn thông tin. Hãy xem lại từng bước.'
+              : 'Đã điền sẵn. Bạn bổ sung thêm ${missing.join(', ')} nhé.',
+        ),
+      ),
+    );
+  }
+
   Future<void> next() async {
     if (stepChanging) return;
     final catalog = ref.read(plannerTagsProvider);
@@ -317,7 +343,11 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     String? error(String key) => f.errors[key] ?? state.errors[key];
 
     final body = switch (f.step) {
-      0 => _LocationStep(form: f, busy: busy),
+      0 => _LocationStep(
+        form: f,
+        busy: busy,
+        onFill: live && ref.watch(authProvider).authenticated ? fill : null,
+      ),
       1 => _TimeStep(form: f, busy: busy, budget: budget, error: error),
       2 => _InterestStep(form: f, busy: busy, catalog: catalog, error: error),
       _ => _StyleStep(
@@ -559,9 +589,12 @@ class _OfflineNotice extends ConsumerWidget {
 }
 
 class _LocationStep extends ConsumerWidget {
-  const _LocationStep({required this.form, required this.busy});
+  const _LocationStep({required this.form, required this.busy, this.onFill});
   final PlannerFormState form;
   final bool busy;
+
+  /// "Điền giúp tôi" (live, signed in only).
+  final VoidCallback? onFill;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -585,6 +618,16 @@ class _LocationStep extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (onFill != null) ...[
+          AppButton.tonal(
+            buttonKey: const ValueKey('planner-fill'),
+            label: 'Điền giúp tôi bằng AI',
+            icon: LucideIcons.sparkles,
+            expand: true,
+            onPressed: busy ? null : onFill,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         StationField(
           inkKey: const ValueKey('planner-origin'),
           label: 'Ga xuất phát',
