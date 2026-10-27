@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../dev/component_gallery_screen.dart';
 import '../features/foundation/domain/destination.dart';
 import 'app_shell.dart';
+import '../features/planner/presentation/finalized_trip_view.dart';
 import '../features/planner/presentation/planner_page.dart';
 import '../shared/widgets/content_states.dart';
 import '../core/navigation/payment_return_intent.dart';
@@ -32,6 +33,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/dev/gallery',
           builder: (_, _) => const ComponentGalleryScreen(),
+        ),
+      if (kDebugMode)
+        GoRoute(
+          path: '/dev/finalized',
+          builder: (_, _) => const FinalizedTripPreviewScreen(),
         ),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/planner', builder: (_, _) => const PlannerPage()),

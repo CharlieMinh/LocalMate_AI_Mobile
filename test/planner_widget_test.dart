@@ -10,6 +10,7 @@ import 'package:localmate_ai_mobile/app/providers.dart';
 import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
 import 'package:localmate_ai_mobile/features/planner/application/planner_controller.dart';
+import 'package:localmate_ai_mobile/features/planner/application/planner_form_controller.dart';
 import 'package:localmate_ai_mobile/features/planner/data/offline_planner_repository.dart';
 import 'package:localmate_ai_mobile/features/planner/domain/planner_criteria.dart';
 import 'package:localmate_ai_mobile/features/planner/presentation/planner_page.dart';
@@ -34,11 +35,18 @@ class CatalogRepository extends OfflinePlannerRepository {
   }
 }
 
-Finder field(String prefix) => find.byWidgetPredicate(
-  (widget) =>
-      widget is TextField &&
-      (widget.decoration?.labelText?.startsWith(prefix) ?? false),
+/// Text inputs left in the wizard (date/time are chips + native pickers).
+Finder field(String prefix) => find.descendant(
+  of: find.byKey(
+    ValueKey(
+      prefix.startsWith('Ngân sách') ? 'planner-budget' : 'planner-note',
+    ),
+  ),
+  matching: find.byType(TextField),
 );
+
+PlannerFormController form(ProviderContainer c) =>
+    c.read(plannerFormProvider.notifier);
 
 void main() {
   Future<ProviderContainer> boot(
@@ -128,7 +136,7 @@ void main() {
     (tester) async {
       final container = await boot(tester);
       expect(find.text('Bắt đầu từ đâu?'), findsOneWidget);
-      expect(find.textContaining('CHẾ ĐỘ OFFLINE'), findsOneWidget);
+      expect(find.text('Chế độ offline'), findsOneWidget);
       await submit(tester);
       expect(find.text('Bản mẫu offline'), findsOneWidget);
       expect(container.read(plannerProvider).preview!.criteria.tagIds, isEmpty);
@@ -156,14 +164,14 @@ void main() {
   testWidgets(
     'invalid date and budget stay in form; explicit time not replaced',
     (tester) async {
-      await boot(tester);
+      final container = await boot(tester);
       await toStep(tester, 1);
-      await tester.ensureVisible(field('Ngày đi'));
-      await tester.enterText(field('Ngày đi'), '2026-02-30');
+      // Pickers cannot produce an impossible date; the contract still rejects it.
+      form(container).setDate('2026-02-30');
       await tester.ensureVisible(field('Ngân sách tối đa'));
       await tester.enterText(field('Ngân sách tối đa'), '-1');
       await submit(tester);
-      await tester.ensureVisible(field('Ngày đi'));
+      expect(find.text('BƯỚC 2/4 · THỜI GIAN'), findsOneWidget);
       expect(find.textContaining('Ngày đi từ hôm nay'), findsOneWidget);
       expect(find.text('Ngân sách không được âm.'), findsOneWidget);
       expect(find.text('Bản mẫu offline'), findsNothing);
@@ -188,15 +196,16 @@ void main() {
   testWidgets('overnight time and entered per-person budget preserved', (
     tester,
   ) async {
-    await boot(tester);
+    final container = await boot(tester);
     await toStep(tester, 1);
-    await tester.ensureVisible(field('Ngày đi'));
-    await tester.enterText(field('Ngày đi'), '2026-10-20');
-    await tester.enterText(field('Giờ bắt đầu'), '23:30');
+    await tester.tap(find.text('Ngày mai'));
+    form(container).setTime('23:30');
+    await tester.pumpAndSettle();
+    expect(find.text('Lịch trình kết thúc sang ngày hôm sau.'), findsOneWidget);
     await tester.ensureVisible(field('Ngân sách tối đa'));
     await tester.enterText(field('Ngân sách tối đa'), '250000');
     await submit(tester);
-    expect(find.textContaining('23:30 → 03:30 (ngày hôm sau)'), findsOneWidget);
+    expect(find.textContaining('23:30 – 03:30 (ngày hôm sau)'), findsOneWidget);
     expect(find.text('01:30 (ngày hôm sau) · mốc minh họa'), findsOneWidget);
     expect(find.textContaining('250.000 VND / người'), findsOneWidget);
   });
@@ -215,7 +224,7 @@ void main() {
       await tester.pumpAndSettle();
       await toStep(tester, 2);
       await tester.ensureVisible(find.text('Không tải được danh mục mẫu.'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Thử lại'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Thử lại'));
       await tester.pumpAndSettle();
       expect(find.text('Chưa có sở thích mẫu'), findsOneWidget);
       expect(attempts, 2);
@@ -238,7 +247,7 @@ void main() {
         find.textContaining('Tiếp tục mà không chọn sở thích'),
         findsOneWidget,
       );
-      expect(find.widgetWithText(FilledButton, 'Thử lại'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Thử lại'), findsOneWidget);
       expect(
         tester
             .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tiếp tục'))
@@ -281,7 +290,7 @@ void main() {
         expect(tester.widget<FilledButton>(action).onPressed, isNull);
         expect(container.read(plannerProvider).preview, isNull);
         expect(attempts, 2);
-        final retry = find.widgetWithText(FilledButton, 'Thử lại');
+        final retry = find.widgetWithText(OutlinedButton, 'Thử lại');
         await tester.ensureVisible(retry);
         await tester.tap(retry);
         await tester.pump();
@@ -426,14 +435,12 @@ void main() {
   testWidgets(
     'wizard keeps one active step, pinned action and date across Back',
     (tester) async {
-      await boot(tester);
+      final container = await boot(tester);
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.text('BƯỚC 1/4 · VỊ TRÍ'), findsOneWidget);
-      expect(field('Ngày đi'), findsNothing);
+      expect(field('Ngân sách'), findsNothing);
       await toStep(tester, 1);
-      await tester.enterText(field('Ngày đi'), '2026-10-20');
-      FocusManager.instance.primaryFocus?.unfocus();
-      tester.testTextInput.hide();
+      await tester.tap(find.text('Ngày mai'));
       await tester.pumpAndSettle();
       final action = find.widgetWithText(FilledButton, 'Tiếp tục');
       final before = tester.getCenter(action);
@@ -447,10 +454,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('BƯỚC 1/4 · VỊ TRÍ'), findsOneWidget);
       await toStep(tester, 1);
-      expect(
-        tester.widget<TextField>(field('Ngày đi')).controller!.text,
-        '2026-10-20',
-      );
+      expect(container.read(plannerFormProvider).date, '2026-10-20');
+      final chip = find.widgetWithText(ChoiceChip, 'Ngày mai');
+      expect(tester.widget<ChoiceChip>(chip).selected, isTrue);
     },
   );
   testWidgets('rapid double tap cannot skip a wizard step', (tester) async {
@@ -465,12 +471,8 @@ void main() {
   testWidgets('native date confirm and time cancel preserve explicit values', (
     tester,
   ) async {
-    await boot(tester);
+    final container = await boot(tester);
     await toStep(tester, 1);
-    await tester.enterText(field('Ngày đi'), '2026-10-20');
-    FocusManager.instance.primaryFocus?.unfocus();
-    tester.testTextInput.hide();
-    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Chọn ngày'));
     await tester.pumpAndSettle();
     expect(find.byType(DatePickerDialog), findsOneWidget);
@@ -481,23 +483,16 @@ void main() {
     );
     await tester.tap(find.text('Chọn'));
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<TextField>(field('Ngày đi')).controller!.text,
-      '2026-10-20',
-    );
-    await tester.enterText(field('Giờ bắt đầu'), '23:30');
-    FocusManager.instance.primaryFocus?.unfocus();
-    tester.testTextInput.hide();
+    // Confirming the picker's initial date (today, VN time) sets it explicitly.
+    expect(container.read(plannerFormProvider).date, '2026-10-19');
+    form(container).setTime('23:30');
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Chọn giờ'));
     await tester.pumpAndSettle();
     expect(find.byType(TimePickerDialog), findsOneWidget);
     await tester.tap(find.text('Hủy'));
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<TextField>(field('Giờ bắt đầu')).controller!.text,
-      '23:30',
-    );
+    expect(container.read(plannerFormProvider).time, '23:30');
   });
   testWidgets(
     'Home prototype CTA opens public offline wizard without authentication',
@@ -525,18 +520,23 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(preset);
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<DropdownButtonFormField<int>>(
-              find.byType(DropdownButtonFormField<int>),
-            )
-            .initialValue,
-        8,
-      );
+      expect(container.read(plannerFormProvider).durationHours, 8);
+      // Custom 1–24 h sheet: step up once and confirm.
+      final custom = find.byKey(const ValueKey('planner-duration-custom'));
+      await tester.ensureVisible(custom);
+      await tester.pumpAndSettle();
+      await tester.tap(custom);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Tăng 1 giờ'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xong'));
+      await tester.pumpAndSettle();
+      expect(container.read(plannerFormProvider).durationHours, 9);
+      expect(find.widgetWithText(ChoiceChip, '9 giờ'), findsOneWidget);
       await submit(tester);
       expect(
         container.read(plannerProvider).preview!.criteria.durationHours,
-        8,
+        9,
       );
       expect(find.text('Lịch trình theo giờ'), findsOneWidget);
     },
@@ -577,7 +577,7 @@ void main() {
         await boot(tester, scale: scale);
         await toStep(tester, 1);
         expect(
-          MediaQuery.textScalerOf(tester.element(field('Ngày đi'))).scale(10),
+          MediaQuery.textScalerOf(tester.element(field('Ngân sách'))).scale(10),
           10 * scale,
         );
         expect(tester.takeException(), isNull);

@@ -126,12 +126,14 @@ class MetroLineDiagram extends StatelessWidget {
     this.selectedOrder,
     this.rangeEnd,
     this.onSelect,
+    this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
   });
 
   final List<MetroStop> stations;
   final int? selectedOrder;
   final int? rangeEnd;
   final ValueChanged<MetroStop>? onSelect;
+  final EdgeInsets padding;
 
   static const _stopWidth = 88.0;
 
@@ -149,7 +151,7 @@ class MetroLineDiagram extends StatelessWidget {
     final text = context.textStyles;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+      padding: padding,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

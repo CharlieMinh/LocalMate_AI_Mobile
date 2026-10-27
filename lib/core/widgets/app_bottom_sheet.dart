@@ -44,7 +44,7 @@ Future<bool> showAppConfirmSheet({
   final result = await showAppBottomSheet<bool>(
     context: context,
     title: title,
-    scrollable: false,
+    scrollable: true,
     builder: (sheetContext) => Text(
       message,
       style: sheetContext.textStyles.bodyMedium?.copyWith(

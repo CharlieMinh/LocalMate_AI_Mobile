@@ -48,6 +48,8 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions = const [],
     this.showBack,
     this.transparent = false,
+    this.onBack,
+    this.backTooltip,
   });
 
   final String title;
@@ -55,16 +57,23 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   final bool? showBack;
   final bool transparent;
 
+  /// Custom back handling (e.g. a wizard stepping back); forces the button.
+  final VoidCallback? onBack;
+  final String? backTooltip;
+
   @override
   Size get preferredSize => const Size.fromHeight(AppSizes.appBarHeight);
 
   @override
   Widget build(BuildContext context) {
-    final canPop = showBack ?? Navigator.of(context).canPop();
+    final canPop =
+        onBack != null || (showBack ?? Navigator.of(context).canPop());
     return AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: transparent ? Colors.transparent : null,
-      leading: canPop ? const AppBackButton() : null,
+      leading: canPop
+          ? AppBackButton(onPressed: onBack, tooltip: backTooltip)
+          : null,
       title: Text(title),
       actions: [
         ...actions,
@@ -75,13 +84,14 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class AppBackButton extends StatelessWidget {
-  const AppBackButton({super.key, this.onPressed});
+  const AppBackButton({super.key, this.onPressed, this.tooltip});
 
   final VoidCallback? onPressed;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+    tooltip: tooltip ?? MaterialLocalizations.of(context).backButtonTooltip,
     onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
     icon: const Icon(LucideIcons.arrowLeft),
   );
@@ -167,9 +177,12 @@ class AppBottomNav extends StatelessWidget {
 
 /// Bottom-pinned action area (primary CTA on detail/wizard screens).
 class AppBottomActionBar extends StatelessWidget {
-  const AppBottomActionBar({super.key, required this.children});
+  const AppBottomActionBar({super.key, required this.children, this.flex});
 
   final List<Widget> children;
+
+  /// Optional flex per child (e.g. [2, 3] to give the primary action room).
+  final List<int>? flex;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +205,7 @@ class AppBottomActionBar extends StatelessWidget {
             children: [
               for (var i = 0; i < children.length; i++) ...[
                 if (i > 0) const SizedBox(width: AppSpacing.sm),
-                Expanded(child: children[i]),
+                Expanded(flex: flex?[i] ?? 1, child: children[i]),
               ],
             ],
           ),

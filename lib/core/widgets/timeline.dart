@@ -381,3 +381,56 @@ class _DashedRail extends CustomPainter {
   @override
   bool shouldRepaint(_DashedRail old) => old.color != color;
 }
+
+/// Neutral segment between stops when no leg data exists (offline previews):
+/// a dashed rail with a short note.
+class TimelineConnector extends StatelessWidget {
+  const TimelineConnector({
+    super.key,
+    required this.label,
+    this.icon = LucideIcons.route,
+  });
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: TimelineStop._railColumn,
+            child: Center(
+              child: CustomPaint(
+                size: const Size(AppSizes.railWidth, double.infinity),
+                painter: _DashedRail(context.appColors.metroLine),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: AppSizes.iconSm,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(label, style: context.textStyles.bodySmall),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
