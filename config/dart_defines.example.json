@@ -1,0 +1,5 @@
+{
+  "APP_ENV": "development",
+  "API_BASE_URL": "http://10.0.2.2:5286",
+  "GOOGLE_SERVER_CLIENT_ID": "<web-client-id>.apps.googleusercontent.com"
+}

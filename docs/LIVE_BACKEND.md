@@ -22,6 +22,33 @@ flutter run --dart-define=API_BASE_URL=... --dart-define=GOOGLE_SERVER_CLIENT_ID
 
 Không có `GOOGLE_SERVER_CLIENT_ID` thì nút Google bị tắt. Android cần thêm một OAuth client loại Android (package name + SHA-1 của keystore) trong cùng Google Cloud project; việc này cấu hình trên console, không nằm trong mã nguồn.
 
+### Lưu giá trị trên máy (không commit)
+
+Thay vì gõ từng `--dart-define`, có thể lưu các giá trị vào một file local bị gitignore:
+
+```bash
+cp config/dart_defines.example.json config/dart_defines.local.json   # rồi điền giá trị
+flutter run --dart-define-from-file=config/dart_defines.local.json
+flutter build apk --debug --dart-define-from-file=config/dart_defines.local.json
+```
+
+`config/*.local.json` nằm trong `.gitignore`. File chỉ chứa 3 giá trị mà app thật sự đọc:
+
+| Khoá | Lấy từ đâu |
+|---|---|
+| `APP_ENV` | `development`, `staging` hoặc `production` |
+| `API_BASE_URL` | Địa chỉ backend (emulator + backend trên máy dev: `http://10.0.2.2:5286`) |
+| `GOOGLE_SERVER_CLIENT_ID` | `GoogleAuth__ClientId` trong `.env` của backend (client ID loại web, không phải bí mật) |
+
+### Không đưa key của backend vào app
+
+SMTP, Gemini (`Llm__ApiKey`, `Embedding__ApiKey`), PayOS, Cloudinary, `Jwt__SigningKey`, `Otp__HashKey` và mật khẩu Postgres là **bí mật phía server**.
+
+- App không gọi các dịch vụ này mà đi qua API của backend, nên không cần các key đó.
+- Mọi giá trị truyền bằng `--dart-define` đều được đóng vào APK, và ai có APK cũng giải nén lấy ra được, kể cả khi không push lên GitHub.
+
+Muốn đăng ký / quên mật khẩu, AI và PayOS chạy thật: hãy chạy **backend** với `.env` của nó (xem mục dưới); app tự dùng được qua API.
+
 ## Chạy backend cục bộ để thử
 
 Không cần sửa repo BE. Các biến môi trường dưới đây chỉ dùng cho máy dev:

@@ -57,3 +57,9 @@ key.properties
 *.aab
 
 .fake
+# Local build-time values (--dart-define-from-file). Never commit: copy
+# config/dart_defines.example.json to config/dart_defines.local.json.
+/config/*.local.json
+.env
+.env.*
+!.env.example
