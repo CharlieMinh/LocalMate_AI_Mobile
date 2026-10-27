@@ -84,14 +84,18 @@ Backend tự migrate và seed dữ liệu: 14 ga, khoảng 65 địa điểm, 3 
 
 Lỗi ProblemDetails được map sang tiếng Việt trong `lib/core/network/api_messages.dart`. Lỗi từng trường từ server chỉ hiển thị nguyên văn khi server đã trả tiếng Việt; thông điệp mặc định tiếng Anh của ASP.NET được thay bằng câu tiếng Việt. Timeout, mất mạng và lỗi 5xx có thông điệp riêng.
 
-## Chưa kiểm chứng end-to-end
+## Thử với key thật (27/10/2026)
 
-Máy dev không có SMTP, khoá Gemini, cấu hình PayOS và Google OAuth nên các luồng sau mới được kiểm bằng phản hồi **đúng hình dạng hợp đồng** (ghi chú rõ trong `test/support/live_backend.dart`), chưa chạy với dịch vụ thật:
+Backend chạy trên máy với `.env` thật (SMTP, Gemini, PayOS), DB thử nghiệm riêng. Phản hồi thật được giải mã bằng model của app (test tạm, không commit).
 
-- Đăng ký / quên mật khẩu thành công (backend dev trả 500 vì không gửi được email; lỗi trùng email, sai mã đã thu thật).
-- AI giải thích và "Điền giúp tôi" thành công (backend dev trả 503 `ai_unavailable`, đã thu thật).
-- PayOS: tạo đơn và trạng thái Paid (backend dev trả 502 `payment_gateway_unavailable`, đã thu thật; báo giá đã thu thật).
-- Google: ID token thật (backend trả 401 `invalid_google_token` cho token giả, đã thu thật).
+| Luồng | Kết quả |
+|---|---|
+| Đăng ký + OTP qua email | **Chạy được**: email tới hộp thư thật, `register/verify` → 201, đăng nhập, hồ sơ, gói Free, thông báo chào mừng |
+| "Điền giúp tôi" (`parse-request`) | **Chạy được** với Gemini (~8–10 s); app điền đúng thời lượng, ngân sách, phương tiện, ngày giờ, sở thích, ga đích và hỏi thêm ga xuất phát |
+| AI giải thích (`explanations`) | **Lỗi phía backend**: `TripExplanationService.ProviderTimeout` = 10 s nên Gemini bị cắt (`ProviderFailed` sau 10.010 ms, cả 2 lần). App hiện đúng thông báo 503 |
+| PayOS checkout | **Lỗi phía backend**: mã đơn lấy từ sequence `PaymentOrderCodeSequence`, nên DB mới đánh số lại từ đầu và trùng đơn đã có trên cùng tài khoản PayOS (đơn thật, đã thanh toán). Backend trả 502; không có đơn mới nào được tạo |
+
+Chưa kiểm: quên mật khẩu với email thật, PayOS thành công (cần dải mã đơn riêng cho môi trường thử), Google với ID token thật (cần OAuth client Android), chạy trên thiết bị thật.
 
 Chưa làm: mua lẻ một lượt chốt lịch trình (`/itinerary-purchases/*`; màn trạng thái đơn đã hỗ trợ `flow=single`), góp ý ứng dụng (`/app-feedback`), phiên demo (`/auth/demo`).
 
