@@ -50,6 +50,36 @@ class LiveBackend {
   /// AI is off on the dev backend (no Gemini key); flip to use the
   /// contract-shaped success below.
   bool aiAvailable = false;
+  bool notificationRead = false;
+
+  /// Codes the fake accepts for registration / password reset OTPs.
+  static const validCode = '123456';
+
+  // Register and reset return 202 with an emailed code. The dev backend has
+  // no SMTP (500), so this success shape comes from the contract
+  // (OtpDispatchResponse).
+  ResponseBody _otpSent(RequestOptions r) => reply(
+    jsonEncode({
+      'email': (r.data as Map)['email'],
+      'codeExpiresInSeconds': 600,
+      'resendAfterSeconds': 60,
+    }),
+    status: 202,
+  );
+
+  ResponseBody _checkCode(RequestOptions r, ResponseBody ok) =>
+      (r.data as Map)['code'] == validCode
+      ? ok
+      : reply(liveJson('verify-bad'), status: 400);
+
+  String _notifications() {
+    final page = jsonDecode(liveJson('notifications')) as Map<String, Object?>;
+    for (final n in page['items']! as List) {
+      (n as Map)['isRead'] = notificationRead;
+    }
+    return jsonEncode(page);
+  }
+
   final calls = <String>[];
 
   /// Decoded JSON bodies of write requests, keyed like [calls].
@@ -151,6 +181,55 @@ class LiveBackend {
             )
           : reply(liveJson('explanations'), status: 503),
     ),
+    'POST /auth/register': (r) =>
+        (r.data as Map)['email'] == 'user1@localmate.dev'
+        ? reply(liveJson('register-dup'), status: 409)
+        : _write('register', r, _otpSent(r)),
+    'POST /auth/register/resend': (r) => _write('resend', r, _otpSent(r)),
+    'POST /auth/register/verify': (r) => _write(
+      'verify',
+      r,
+      _checkCode(
+        r,
+        reply(
+          jsonEncode({
+            'id': 'b2c1a0f0-0000-4000-8000-000000000001',
+            'fullName': 'Khách Mới',
+            'email': (r.data as Map)['email'],
+            'role': 'User',
+            'createdAt': '2026-10-27T09:00:00Z',
+          }),
+          status: 201,
+        ),
+      ),
+    ),
+    'POST /auth/password-reset/request': (r) =>
+        _write('reset-request', r, _otpSent(r)),
+    'POST /auth/password-reset/confirm': (r) =>
+        _write('reset-confirm', r, _checkCode(r, reply('', status: 204))),
+    'PATCH /users/me': (r) {
+      final me = jsonDecode(liveJson('me')) as Map<String, Object?>;
+      final body = r.data as Map;
+      if (body['fullName'] case final String name) me['fullName'] = name;
+      if (body['preferences'] case final Map prefs) {
+        me['preferences'] = {
+          'interestTagIds': prefs['interestTagIds'] ?? const [],
+          'travelStyleTagIds': prefs['travelStyleTagIds'] ?? const [],
+        };
+      }
+      return _write('patch-me', r, reply(jsonEncode(me)));
+    },
+    'GET /notifications': (_) => reply(_notifications()),
+    'GET /notifications/unread-count': (_) =>
+        reply(jsonEncode({'count': notificationRead ? 0 : 1})),
+    'POST /notifications/01f7969d-83fc-4c39-aa7b-3ab90bd90b63/read': (r) {
+      notificationRead = true;
+      return _write('notification-read', r, reply('', status: 204));
+    },
+    'POST /notifications/read-all': (r) {
+      notificationRead = true;
+      return _write('read-all', r, reply('', status: 204));
+    },
     'POST /trips/generate': (_) {
       calls.add('generate');
       return generateQuotaExceeded

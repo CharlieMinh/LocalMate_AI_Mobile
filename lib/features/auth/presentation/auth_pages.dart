@@ -12,8 +12,10 @@ import '../../../core/network/api_messages.dart';
 import '../../../shared/formatters.dart';
 import '../../trips/application/trips_providers.dart';
 import '../../trips/domain/trip_models.dart';
+import '../application/account_providers.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_contracts.dart';
+import 'account_pages.dart';
 
 String authErrorMessage(ApiFailure error) => switch (error.code) {
   'invalid_credentials' => 'Email hoặc mật khẩu không đúng.',
@@ -210,7 +212,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       haptic: true,
                       onPressed: busy ? null : _submit,
                     ),
-                    if (live) const SizedBox(height: AppSpacing.lg),
+                    if (live) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        children: [
+                          AppButton.ghost(
+                            buttonKey: const Key('login-forgot'),
+                            label: 'Quên mật khẩu?',
+                            compact: true,
+                            onPressed: busy
+                                ? null
+                                : () => context.push('/forgot-password'),
+                          ),
+                          AppButton.ghost(
+                            buttonKey: const Key('login-register'),
+                            label: 'Tạo tài khoản',
+                            compact: true,
+                            trailingIcon: LucideIcons.arrowRight,
+                            onPressed: busy
+                                ? null
+                                : () => context.push('/register'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
                     if (!live) ...[
                       const SizedBox(height: AppSpacing.xl),
                       Row(
@@ -471,15 +498,21 @@ class AuthAccountPage extends ConsumerWidget {
                   _MenuRow(
                     icon: LucideIcons.bell,
                     label: 'Thông báo',
-                    onTap: () => showAppBottomSheet<void>(
-                      context: context,
-                      title: 'Thông báo',
-                      builder: (_) => const AppEmptyState(
-                        compact: true,
-                        title: 'Chưa có thông báo',
-                        message: 'Thông báo chưa được kết nối trong bản offline. Ứng dụng không yêu cầu quyền thông báo.',
-                      ),
-                    ),
+                    trailing: switch (ref.watch(unreadCountProvider).value) {
+                      final n? when n > 0 => '$n chưa đọc',
+                      _ => null,
+                    },
+                    onTap: live && auth.authenticated
+                        ? () => context.push('/notifications')
+                        : () => showAppBottomSheet<void>(
+                            context: context,
+                            title: 'Thông báo',
+                            builder: (_) => const AppEmptyState(
+                              compact: true,
+                              title: 'Chưa có thông báo',
+                              message: 'Thông báo chưa được kết nối trong bản offline. Ứng dụng không yêu cầu quyền thông báo.',
+                            ),
+                          ),
                   ),
                   _MenuRow(
                     icon: LucideIcons.sunMoon,
@@ -796,6 +829,9 @@ class PersonalizationPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authProvider);
+    if (ref.watch(liveBackendProvider) && session.authenticated) {
+      return const ProfileEditPage();
+    }
     final fullName = session.profile?.fullName.trim();
     final text = context.textStyles;
     return Scaffold(

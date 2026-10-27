@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -275,6 +276,163 @@ void main() {
       findsOneWidget,
     );
     await tester.pump(const Duration(seconds: 5));
+    await finish(tester, container);
+  });
+
+  testWidgets('register: details, wrong then right code, signed in', (
+    tester,
+  ) async {
+    final container = await boot(tester, route: '/login');
+    await tap(tester, find.byKey(const Key('login-register')));
+    await tap(tester, find.byKey(const ValueKey('register-submit')));
+    expect(find.text('Nhập họ và tên.'), findsOneWidget);
+    expect(backend.calls, isNot(contains('register')));
+    await tester.enterText(
+      find.byKey(const ValueKey('register-name')),
+      'Khách Mới',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('register-email')),
+      'Moi@LocalMate.dev ',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('register-password')),
+      'Matkhau@123',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('register-confirm')),
+      'Matkhau@123',
+    );
+    await tap(tester, find.byKey(const ValueKey('register-submit')));
+    expect(backend.bodies['register'], {
+      'fullName': 'Khách Mới',
+      'email': 'moi@localmate.dev',
+      'password': 'Matkhau@123',
+    });
+    expect(find.text('Nhập mã xác thực'), findsOneWidget);
+    expect(find.text('Gửi lại mã sau 60 giây'), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('otp-code')), '000000');
+    await tap(tester, find.byKey(const ValueKey('register-verify')));
+    expect(find.text('Mã xác thực không đúng.'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('otp-code')),
+      LiveBackend.validCode,
+    );
+    await tap(tester, find.byKey(const ValueKey('register-verify')));
+    expect(backend.bodies['verify'], {
+      'email': 'moi@localmate.dev',
+      'code': LiveBackend.validCode,
+    });
+    expect(container.read(authProvider).authenticated, isTrue);
+    expect(
+      find.text('Tạo tài khoản thành công. Chào mừng bạn!'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(minutes: 2)); // resend countdown
+    await finish(tester, container);
+  });
+
+  testWidgets('register with a taken email shows the backend reason', (
+    tester,
+  ) async {
+    await boot(tester, route: '/register');
+    await tester.enterText(find.byKey(const ValueKey('register-name')), 'A');
+    await tester.enterText(
+      find.byKey(const ValueKey('register-email')),
+      'user1@localmate.dev',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('register-password')),
+      'Matkhau@123',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('register-confirm')),
+      'Matkhau@123',
+    );
+    await tap(tester, find.byKey(const ValueKey('register-submit')));
+    expect(
+      find.text('Email này đã được đăng ký. Hãy đăng nhập.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('forgot password: request code, set a new password', (
+    tester,
+  ) async {
+    await boot(tester, route: '/login');
+    await tap(tester, find.byKey(const Key('login-forgot')));
+    await tester.enterText(
+      find.byKey(const ValueKey('reset-email')),
+      'user3@localmate.dev',
+    );
+    await tap(tester, find.byKey(const ValueKey('reset-request')));
+    expect(backend.bodies['reset-request'], {'email': 'user3@localmate.dev'});
+    await tester.enterText(
+      find.byKey(const ValueKey('otp-code')),
+      LiveBackend.validCode,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('reset-password')),
+      'Matkhau@456',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('reset-confirm')),
+      'Matkhau@456',
+    );
+    await tap(tester, find.byKey(const ValueKey('reset-confirm-submit')));
+    expect(backend.bodies['reset-confirm'], {
+      'email': 'user3@localmate.dev',
+      'code': LiveBackend.validCode,
+      'newPassword': 'Matkhau@456',
+    });
+    expect(find.text('Chào mừng bạn trở lại'), findsOneWidget);
+    await tester.pump(const Duration(minutes: 2));
+  });
+
+  testWidgets('profile edit saves name and interests', (tester) async {
+    final container = await boot(tester, route: '/account', signIn: true);
+    await tap(
+      tester,
+      find.byKey(const ValueKey('account-section-Sở thích của bạn')),
+    );
+    expect(find.text('Hồ sơ & cá nhân hóa'), findsOneWidget);
+    final save = find.byKey(const ValueKey('profile-save'));
+    expect(tester.widget<FilledButton>(save).onPressed, isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('profile-name')),
+      'Minh Phạm',
+    );
+    final tags = jsonDecode(liveJson('tags')) as List;
+    final interest =
+        (tags.firstWhere((t) => (t as Map)['type'] == 'Interest') as Map)['id']
+            as String;
+    await tap(tester, find.byKey(ValueKey('profile-tag-$interest')));
+    await tap(tester, save);
+    expect(backend.bodies['patch-me'], {
+      'fullName': 'Minh Phạm',
+      'preferences': {
+        'interestTagIds': [interest],
+        'travelStyleTagIds': <String>[],
+      },
+    });
+    expect(container.read(authProvider).profile!.fullName, 'Minh Phạm');
+    expect(container.read(authProvider).profile!.interestTagIds, [interest]);
+    expect(find.text('Minh Phạm'), findsOneWidget); // back on Account
+    await tester.pump(const Duration(seconds: 5));
+    await finish(tester, container);
+  });
+
+  testWidgets('notifications: unread badge, open marks read and opens trip', (
+    tester,
+  ) async {
+    final container = await boot(tester, route: '/account', signIn: true);
+    expect(find.text('1 chưa đọc'), findsOneWidget);
+    await tap(tester, find.text('Thông báo'));
+    expect(find.text('Lịch trình đã được chốt'), findsOneWidget);
+    expect(find.byTooltip('Đánh dấu đã đọc tất cả'), findsOneWidget);
+    await tap(tester, find.text('Lịch trình đã được chốt'));
+    expect(backend.calls, contains('notification-read'));
+    expect(find.text('Lịch trình nháp'), findsOneWidget);
     await finish(tester, container);
   });
 }

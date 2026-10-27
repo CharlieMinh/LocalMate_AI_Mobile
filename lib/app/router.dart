@@ -14,6 +14,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/auth/presentation/account_pages.dart';
 import '../features/auth/presentation/auth_pages.dart';
 import '../features/discovery/presentation/discovery_pages.dart';
 import '../features/discovery/presentation/metro_pages.dart';
@@ -28,7 +29,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final authenticated = ref.read(authProvider).authenticated;
-      if (state.uri.path == '/private' && !authenticated) return '/login';
+      if ((state.uri.path == '/private' ||
+              state.uri.path == '/notifications') &&
+          !authenticated) {
+        return '/login';
+      }
       if (state.uri.path == '/login' && authenticated) return '/private';
       return null;
     },
@@ -45,6 +50,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (_, _) => const FinalizedTripPreviewScreen(),
         ),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+      GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, _) => const NotificationsPage(),
+      ),
       GoRoute(path: '/planner', builder: (_, _) => const PlannerPage()),
       GoRoute(
         path: '/planner/preview/:key',

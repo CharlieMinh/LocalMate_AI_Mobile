@@ -208,6 +208,14 @@ class AuthController extends Notifier<AuthState> {
     _expiry = Timer(session.login.expiresAt.difference(_now()), checkExpiry);
   }
 
+  /// Adopts a profile returned by `PATCH /users/me` for the same account.
+  void profileUpdated(AuthProfile profile) {
+    final session = _session;
+    if (!_alive || session == null || session.profile.id != profile.id) return;
+    _session = AuthSession(session.login, profile);
+    state = AuthState(AuthPhase.signedIn, profile: profile);
+  }
+
   void checkExpiry() {
     if (!_alive) return;
     final expiry = _session?.login.expiresAt;
