@@ -59,6 +59,9 @@ class LiveBackend {
   late final String lastItemId;
   bool finalized = false;
   bool generateQuotaExceeded = false;
+
+  /// The server saves the draft but the reply times out on the client.
+  bool generateTimesOut = false;
   bool reviewed = false;
   bool feedbackGiven = false;
 
@@ -419,8 +422,15 @@ class LiveBackend {
         }),
       );
     },
-    'POST /trips/generate': (_) {
+    'POST /trips/generate': (r) {
       calls.add('generate');
+      if (generateTimesOut) {
+        noTrips = false;
+        throw DioException(
+          requestOptions: r,
+          type: DioExceptionType.receiveTimeout,
+        );
+      }
       if (!generateQuotaExceeded) noTrips = false;
       return generateQuotaExceeded
           ? reply(

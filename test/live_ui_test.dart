@@ -826,4 +826,30 @@ void main() {
     await tap(tester, find.byTooltip('Đóng'));
     await finish(tester, container);
   });
+
+  testWidgets('a generate timeout asks to check saved trips first', (
+    tester,
+  ) async {
+    backend
+      ..noTrips = true
+      ..generateTimesOut = true;
+    final container = await boot(tester, route: '/home', signIn: true);
+    container.read(routerProvider).push('/planner');
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 3; i++) {
+      await tap(tester, find.widgetWithText(FilledButton, 'Tiếp tục'));
+    }
+    await tap(tester, find.widgetWithText(FilledButton, 'Tạo lịch trình'));
+    expect(find.text('Chưa rõ lịch trình đã được tạo chưa'), findsOneWidget);
+    expect(find.text('Thử lại'), findsNothing); // no plain retry
+    expect(
+      find.widgetWithText(FilledButton, 'Vẫn tạo lịch trình mới'),
+      findsOneWidget,
+    );
+    expect(backend.calls.where((c) => c == 'generate'), hasLength(1));
+    await tap(tester, find.byKey(const ValueKey('planner-check-trips')));
+    // The draft the server saved is listed.
+    expect(find.text('Quanh ga Bến Thành · 4 giờ'), findsOneWidget);
+    await finish(tester, container);
+  });
 }

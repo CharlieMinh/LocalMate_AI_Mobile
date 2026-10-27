@@ -11,7 +11,14 @@ import '../../auth/application/auth_controller.dart';
 import '../data/offline_planner_repository.dart';
 import '../domain/planner_criteria.dart';
 
+/// [outcomeUnknown]: the generate request may have reached the server
+/// (timeout, lost reply), so a draft may already be saved.
 enum PlannerPhase { idle, processing, ready, error, outcomeUnknown }
+
+/// Failures where the server may have saved a draft anyway.
+bool _ambiguousOutcome(ApiFailure failure) =>
+    failure.kind == FailureKind.timeout ||
+    (failure.kind == FailureKind.unavailable && failure.status == null);
 
 class PlannerPreviewSequence {
   int value = 0;
@@ -115,6 +122,8 @@ class PlannerController extends Notifier<PlannerState> {
     final lease = owner.lease;
     _cancel = CancelToken();
     final token = _cancel!;
+    // Read before the await: the controller may be disposed meanwhile.
+    final live = !ref.read(configProvider).mockOnly;
     // Set synchronously before the first await; never automatically retry.
     state = const PlannerState(phase: PlannerPhase.processing);
     try {
@@ -137,8 +146,25 @@ class PlannerController extends Notifier<PlannerState> {
       state = PlannerState(phase: PlannerPhase.ready, preview: preview);
       return preview;
     } catch (error) {
+      final unknown = error is ApiFailure && live && _ambiguousOutcome(error);
+      // The request may have created a draft and used a generation.
+      if (unknown && _alive) {
+        ref
+          ..invalidate(myTripsProvider)
+          ..invalidate(subscriptionProvider);
+      }
       if (!_current(operation, owner, lease) || token.isCancelled) return null;
-      if (error is ApiFailure && !ref.read(configProvider).mockOnly) {
+      if (unknown) {
+        state = PlannerState(
+          phase: PlannerPhase.outcomeUnknown,
+          failure: error,
+          message:
+              'Máy chủ phản hồi quá lâu nên chưa rõ lịch trình đã được tạo hay chưa. '
+              'Hãy xem Lịch trình của tôi trước khi tạo lại, để tránh tạo trùng và tốn thêm lượt.',
+        );
+        return null;
+      }
+      if (error is ApiFailure && live) {
         state = PlannerState(
           phase: PlannerPhase.error,
           failure: error,

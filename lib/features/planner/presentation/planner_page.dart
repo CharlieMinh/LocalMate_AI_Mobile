@@ -359,6 +359,7 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
         note: note,
         error: error,
         failure: state.message,
+        outcomeUnknown: state.phase == PlannerPhase.outcomeUnknown,
         onRetry: next,
       ),
     };
@@ -444,6 +445,9 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                   AppButton(
                     label: busy
                         ? (live ? 'Đang tạo lịch trình…' : 'Đang tạo bản mẫu…')
+                        : f.isLastStep &&
+                              state.phase == PlannerPhase.outcomeUnknown
+                        ? 'Vẫn tạo lịch trình mới'
                         : f.isLastStep
                         ? (live ? 'Tạo lịch trình' : 'Xem lịch trình mẫu')
                         : 'Tiếp tục',
@@ -1097,6 +1101,7 @@ class _StyleStep extends ConsumerWidget {
     required this.error,
     required this.failure,
     required this.onRetry,
+    this.outcomeUnknown = false,
   });
   final PlannerFormState form;
   final bool busy;
@@ -1105,6 +1110,9 @@ class _StyleStep extends ConsumerWidget {
   final String? Function(String) error;
   final String? failure;
   final VoidCallback onRetry;
+
+  /// Generation may have succeeded: check saved trips before retrying.
+  final bool outcomeUnknown;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1208,7 +1216,22 @@ class _StyleStep extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         const _OfflineNotice(),
-        if (failure != null) ...[
+        if (failure != null && outcomeUnknown) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AppBanner(
+            kind: BannerKind.warning,
+            title: 'Chưa rõ lịch trình đã được tạo chưa',
+            message: failure!,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            buttonKey: const ValueKey('planner-check-trips'),
+            label: 'Xem Lịch trình của tôi',
+            icon: LucideIcons.route,
+            expand: true,
+            onPressed: () => context.go('/trips'),
+          ),
+        ] else if (failure != null) ...[
           const SizedBox(height: AppSpacing.lg),
           AppErrorState(
             compact: true,
