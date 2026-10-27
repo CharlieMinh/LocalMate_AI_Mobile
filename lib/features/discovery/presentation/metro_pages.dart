@@ -742,10 +742,11 @@ class StationDetailPage extends ConsumerWidget {
                           value: ref.watch(clustersProvider),
                           retry: () => ref.invalidate(clustersProvider),
                           data: (clusters) {
-                            final places = clusters
-                                .where((c) => c.stationId == s.id)
-                                .expand((c) => c.places)
-                                .toList();
+                            final places = flattenClusters(
+                              clusters
+                                  .where((c) => c.stationId == s.id)
+                                  .toList(),
+                            );
                             return places.isEmpty
                                 ? const EmptyContent(
                                     icon: Icons.place_outlined,

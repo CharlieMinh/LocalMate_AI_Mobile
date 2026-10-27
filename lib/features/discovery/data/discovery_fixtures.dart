@@ -21,7 +21,11 @@ const fixturePlaces = <Json>[
     'imageUrl': null,
     'estimatedCostMin': 0,
     'estimatedCostMax': 100000,
-    'nearestStation': {'stationName': 'Bến Thành'},
+    'nearestStation': {
+      'stationName': 'Bến Thành',
+      'stationOrder': 1,
+      'distanceMeters': 180,
+    },
     'averageRating': null,
     'reviewCount': 0,
   },
@@ -36,7 +40,11 @@ const fixturePlaces = <Json>[
     'imageUrl': null,
     'estimatedCostMin': 0,
     'estimatedCostMax': null,
-    'nearestStation': {'stationName': 'Nhà hát Thành phố'},
+    'nearestStation': {
+      'stationName': 'Nhà hát Thành phố',
+      'stationOrder': 2,
+      'distanceMeters': 120,
+    },
   },
   {
     'id': '10000000-0000-0000-0000-000000000003',

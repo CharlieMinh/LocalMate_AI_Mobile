@@ -13,9 +13,10 @@ import 'package:localmate_ai_mobile/features/discovery/application/discovery_pro
 import 'package:localmate_ai_mobile/features/discovery/data/discovery_fixtures.dart';
 import 'package:localmate_ai_mobile/features/discovery/data/discovery_repository.dart';
 import 'package:localmate_ai_mobile/features/discovery/domain/discovery_models.dart';
+import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_pages.dart';
 import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_widgets.dart';
+import 'package:localmate_ai_mobile/core/widgets/widgets.dart';
 import 'package:localmate_ai_mobile/features/planner/presentation/planner_page.dart';
-import 'package:localmate_ai_mobile/shared/theme/app_theme.dart';
 
 import 'discovery_offline_test.dart' show jsonReply, loadStationFixtures;
 import 'support/fake_session_store.dart';
@@ -26,7 +27,13 @@ void main() {
   setUpAll(() async {
     stations = await loadStationFixtures();
     final fonts = FontLoader('BeVietnamPro');
-    for (final weight in ['Regular', 'SemiBold', 'Bold']) {
+    for (final weight in [
+      'Regular',
+      'Medium',
+      'SemiBold',
+      'Bold',
+      'ExtraBold',
+    ]) {
       fonts.addFont(rootBundle.load('assets/fonts/BeVietnamPro-$weight.ttf'));
     }
     await fonts.load();
@@ -62,9 +69,25 @@ void main() {
   }
 
   Future<void> tap(WidgetTester tester, Finder finder) async {
+    if (finder.evaluate().isEmpty) {
+      // Slivers build lazily; bring the target into the viewport first.
+      await tester.scrollUntilVisible(
+        finder,
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
     await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
     await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> search(WidgetTester tester, String query) async {
+    final field = find.byKey(const ValueKey('explore-search'));
+    await tester.ensureVisible(field);
+    await tester.enterText(field, query);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
   }
 
@@ -77,22 +100,22 @@ void main() {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   }
 
-  testWidgets('Home matches full-width hero, padded search and compact media', (
+  testWidgets('Home shows greeting, search, hero card and honest data tag', (
     tester,
   ) async {
     viewport(tester, 390, 1);
     await boot(tester);
     final hero = find.byKey(const ValueKey('home-hero'));
-    expect(tester.getTopLeft(hero).dx, 0);
-    expect(tester.getSize(hero), const Size(390, 250));
+    expect(tester.getTopLeft(hero).dx, 16);
+    expect(tester.getSize(hero).width, 358);
+    expect(tester.getSize(hero).height, greaterThanOrEqualTo(224));
     final search = find.byKey(const ValueKey('home-search'));
     expect(tester.getTopLeft(search).dx, 16);
     expect(tester.getSize(search).width, 358);
     expect(tester.getSize(search).height, greaterThanOrEqualTo(48));
     expect(find.text('Xin chào, bạn đồng hành'), findsOneWidget);
-    expect(find.textContaining('chưa kết nối Backend'), findsOneWidget);
-    expect(tester.widget<ColoredBox>(hero).color, Brand.navy);
-    expect(tester.getSize(find.byType(PlaceMedia).first).height, 108);
+    expect(find.text('Dữ liệu minh họa'), findsOneWidget);
+    expect(find.byType(PlaceCard), findsWidgets);
     expect(find.byType(Image), findsOneWidget); // Authorized brand logo only.
   });
 
@@ -136,10 +159,10 @@ void main() {
       await tester.drag(horizontal, const Offset(-350, 0));
       await tester.pumpAndSettle();
       await tap(tester, find.text('Góc cà phê minh họa'));
-      expect(find.text('Chi tiết địa điểm'), findsOneWidget);
+      expect(find.text('Thông tin tham khảo'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Hôm nay mình đi đâu?'), findsOneWidget);
+      expect(find.byType(DiscoveryHomePage), findsOneWidget);
     },
   );
 
@@ -158,7 +181,7 @@ void main() {
         },
       ),
     );
-    final tiles = find.byType(PlaceTile);
+    final tiles = find.byType(PlaceCard);
     expect(tiles, findsNWidgets(3));
     final first = tester.getRect(tiles.at(0));
     final second = tester.getRect(tiles.at(1));
@@ -168,7 +191,7 @@ void main() {
     expect(second.left - first.right, 12);
     expect(second.top, first.top);
     expect(third.top, greaterThan(first.bottom));
-    expect(find.text('Chưa có ảnh địa điểm'), findsNWidgets(3));
+    expect(find.byType(Image), findsNothing);
     expect(find.text('Góc cà phê minh họa'), findsOneWidget);
     expect(find.textContaining('đánh giá'), findsNothing);
   });
@@ -190,7 +213,7 @@ void main() {
       await boot(tester, route: '/explore', client: client);
       final baseline = calls;
       await tap(tester, find.widgetWithText(ChoiceChip, 'Cà phê'));
-      expect(find.byType(PlaceTile), findsOneWidget);
+      expect(find.byType(PlaceCard), findsOneWidget);
       expect(find.text('Chợ Bến Thành'), findsNothing);
       expect(
         tester
@@ -199,7 +222,7 @@ void main() {
         isTrue,
       );
       await tap(tester, find.widgetWithText(ChoiceChip, 'Tất cả'));
-      expect(find.byType(PlaceTile), findsNWidgets(3));
+      expect(find.byType(PlaceCard), findsNWidgets(3));
       expect(calls, baseline);
     },
   );
@@ -239,8 +262,7 @@ void main() {
     );
     await boot(tester, route: '/explore', client: client);
     await tap(tester, find.widgetWithText(ChoiceChip, 'Cà phê'));
-    await tester.enterText(find.byType(TextFormField), 'Bến Thành');
-    await tap(tester, find.widgetWithText(FilledButton, 'Tìm kiếm'));
+    await search(tester, 'Bến Thành');
     expect(query, {'q': 'Bến Thành', 'limit': 5});
     expect(find.text('Ga Metro'), findsOneWidget);
     expect(find.text('Địa điểm'), findsOneWidget);
@@ -267,10 +289,10 @@ void main() {
       container.read(routerProvider).go('/explore');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(PlaceCardsSkeleton), findsOneWidget);
       pending.complete(jsonReply({}, status: 500));
       await tester.pumpAndSettle();
-      expect(find.text('Không thể kết nối'), findsOneWidget);
+      expect(find.text('Không thể tải dữ liệu'), findsOneWidget);
       expect(find.text('Chưa có địa điểm'), findsNothing);
       await tester.pump(const Duration(seconds: 2));
       expect(calls, 1);
@@ -314,15 +336,19 @@ void main() {
             }
             expect(find.text('Dành một buổi cho chính mình'), findsOneWidget);
           }
+          tester
+              .state<ScrollableState>(find.byType(Scrollable).first)
+              .position
+              .jumpTo(0);
+          await tester.pumpAndSettle();
           tester.view.viewInsets = const FakeViewPadding(bottom: 300);
           await tester.pumpAndSettle();
-          final search = find.byType(TextFormField);
-          await tester.ensureVisible(search);
+          final field = find.byKey(const ValueKey('explore-search'));
+          await tester.ensureVisible(field);
           await tester.pumpAndSettle();
-          expect(search.hitTestable(), findsOneWidget);
-          await tester.tap(search);
-          await tester.enterText(search, 'Bến Thành');
-          await tap(tester, find.widgetWithText(FilledButton, 'Tìm kiếm'));
+          expect(field.hitTestable(), findsOneWidget);
+          await tester.tap(field);
+          await search(tester, 'Bến Thành');
           expect(find.text('Kết quả: Bến Thành'), findsOneWidget);
           expect(tester.takeException(), isNull);
           tester.view.resetViewInsets();

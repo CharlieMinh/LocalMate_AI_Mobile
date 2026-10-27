@@ -129,6 +129,11 @@ Lý do, xét theo người dùng là khách du lịch đi Metro số 1 TP.HCM:
 | 14 | Tên màn hình không nhất quán ("Lịch trình" / "Lịch trình cá nhân" / "Lịch trình của bạn") | Tab "Lịch trình", tiêu đề "Lịch trình của tôi", màn chi tiết lấy tên chuyến | Nhất quán |
 | 15 | Không có dark mode, không có trạng thái lỗi/offline | Đủ: light/dark, skeleton, rỗng, lỗi, offline | Yêu cầu dự án |
 | 16 | Dòng gói hiện "—" khi chưa có giá | Skeleton khi đang tải; khối "Chưa thể tải bảng giá" kèm nút thử lại khi lỗi | Tránh cảm giác hỏng |
+| 17 | Hero trang chủ tràn viền | Hero dạng card bo góc 20, cách lề 16 | Đồng bộ với các card khác; minh họa vector cần khung |
+| 18 | Chi tiết địa điểm có thanh tiêu đề "Chi tiết địa điểm" | Header ảnh co giãn 300px, chuyển thành tên địa điểm khi cuộn; nút back nổi trên ảnh | Pattern chi tiết hiện đại; hero animation từ card |
+| 19 | Khám phá có 2 nút "Tìm kiếm" / "Xóa tìm kiếm" dưới ô nhập | Thanh tìm kiếm nổi: tìm bằng phím Tìm trên bàn phím, nút xóa (X) trong ô | Pattern mobile chuẩn; bớt nút thừa |
+| 20 | Nhãn bottom nav phóng theo cỡ chữ hệ thống | Nhãn nav giới hạn phóng 1.3×, tự xuống 2 dòng khi chữ lớn hoặc màn < 360px | Nav là "chrome"; tránh tràn; nội dung trang vẫn phóng đầy đủ |
+| 21 | Không có dark mode | Theme sáng/tối đầy đủ; **mặc định vẫn là sáng** cho tới khi mọi màn đã chuyển sang design system mới, rồi mới đổi sang theo hệ thống | Các màn chưa redesign còn hardcode màu sáng, bật tối sớm sẽ vỡ giao diện |
 
 ---
 

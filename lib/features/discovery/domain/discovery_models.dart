@@ -80,12 +80,13 @@ class Place {
     this.reviewCount,
     this.googlePlaceId,
     this.stationName,
+    this.stationOrder,
     this.distanceMeters,
   });
   final String id, name, address, category;
   final String? description, imageUrl, googlePlaceId, stationName;
   final double? latitude, longitude, costMin, costMax, rating, distanceMeters;
-  final int? reviewCount;
+  final int? reviewCount, stationOrder;
   factory Place.fromJson(Json j) {
     final station = j['nearestStation'] ?? j['station'];
     final ref = station is Map ? object(station) : <String, Object?>{};
@@ -104,7 +105,10 @@ class Place {
       reviewCount: j['reviewCount'] as int?,
       googlePlaceId: j['googlePlaceId'] as String?,
       stationName: (ref['stationName'] ?? ref['name']) as String?,
-      distanceMeters: number(j, 'distanceFromStationMeters'),
+      stationOrder: (ref['stationOrder'] ?? ref['order']) as int?,
+      distanceMeters:
+          number(j, 'distanceFromStationMeters') ??
+          (ref['distanceMeters'] as num?)?.toDouble(),
     );
   }
 }
@@ -189,11 +193,22 @@ class SearchResults {
 }
 
 class StationCluster {
-  const StationCluster(this.stationId, this.places);
+  const StationCluster(
+    this.stationId,
+    this.places, {
+    this.stationName,
+    this.stationOrder,
+  });
   final String stationId;
   final List<Place> places;
-  factory StationCluster.fromJson(Json j) =>
-      StationCluster(text(j, 'stationId'), rows(j['places'], Place.fromJson));
+  final String? stationName;
+  final int? stationOrder;
+  factory StationCluster.fromJson(Json j) => StationCluster(
+    text(j, 'stationId'),
+    rows(j['places'], Place.fromJson),
+    stationName: j['stationName'] as String?,
+    stationOrder: j['stationOrder'] as int?,
+  );
 }
 
 class Headway {
