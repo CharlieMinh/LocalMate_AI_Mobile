@@ -37,10 +37,10 @@ final plannerStations = [
 String plannerStationName(int order) =>
     plannerStations.firstWhere((s) => s.order == order).name;
 
-class PlannerEntryPage extends StatelessWidget {
+class PlannerEntryPage extends ConsumerWidget {
   const PlannerEntryPage({super.key});
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
     builder: (context, constraints) => SingleChildScrollView(
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: constraints.maxHeight),
@@ -56,7 +56,9 @@ class PlannerEntryPage extends StatelessWidget {
                   illustration: IllustrationKind.noTrips,
                   title: 'Một hành trình đang chờ bạn',
                   message: 'Chọn một ga và thời gian rảnh để bắt đầu hành trình đầu tiên.',
-                  actionLabel: 'Tạo lịch trình mẫu',
+                  actionLabel: ref.watch(liveBackendProvider)
+                      ? 'Tạo lịch trình'
+                      : 'Tạo lịch trình mẫu',
                   actionIcon: LucideIcons.sparkles,
                   onAction: () => context.push('/planner'),
                 ),
@@ -401,7 +403,9 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
                                   step: f.step,
                                   caption: captions[f.step],
                                   title: titles[f.step],
-                                  helper: helpers[f.step],
+                                  helper: live && f.isLastStep
+                                      ? 'Kiểm tra lại lựa chọn trước khi tạo lịch trình.'
+                                      : helpers[f.step],
                                 ),
                                 const SizedBox(height: AppSpacing.xl),
                                 PageTransitionSwitcher(
@@ -664,9 +668,10 @@ class _LocationStep extends ConsumerWidget {
           onSelect: busy ? null : (s) => controller.setOrigin(s.order),
         ),
         const SizedBox(height: AppSpacing.lg),
-        const AppBanner(
-          message:
-              'Địa điểm và thứ tự di chuyển sẽ được xem lại trong bản mẫu.',
+        AppBanner(
+          message: ref.watch(liveBackendProvider)
+              ? 'Địa điểm và thứ tự di chuyển sẽ hiện trong lịch trình nháp để bạn xem lại.'
+              : 'Địa điểm và thứ tự di chuyển sẽ được xem lại trong bản mẫu.',
         ),
         const SizedBox(height: AppSpacing.md),
         const _OfflineNotice(),
@@ -997,9 +1002,11 @@ class _InterestStep extends ConsumerWidget {
           loading: () => const _ChoiceGridSkeleton(),
           error: (_, _) => _CatalogFailure(form: form, isLastStep: false),
           data: (items) => items.isEmpty
-              ? const AppEmptyState(
+              ? AppEmptyState(
                   compact: true,
-                  title: 'Chưa có sở thích mẫu',
+                  title: ref.watch(liveBackendProvider)
+                      ? 'Chưa có sở thích để chọn'
+                      : 'Chưa có sở thích mẫu',
                   message: 'Bạn vẫn có thể bỏ trống lựa chọn.',
                 )
               : _ChoiceGrid(
@@ -1037,6 +1044,8 @@ class _InterestStep extends ConsumerWidget {
                   label: Text(
                     catalog.hasError
                         ? 'Sở thích đã chọn chưa thể xác minh'
+                        : ref.watch(liveBackendProvider)
+                        ? 'Sở thích cần sửa: không còn trong danh sách'
                         : 'Sở thích cần sửa: không còn trong danh mục mẫu',
                   ),
                   deleteButtonTooltipMessage: 'Bỏ lựa chọn này',
@@ -1065,9 +1074,11 @@ class _CatalogFailure extends ConsumerWidget {
     ),
     child: AppErrorState(
       compact: true,
-      title: 'Không tải được danh mục mẫu.',
+      title: ref.watch(liveBackendProvider)
+          ? 'Không tải được danh sách sở thích.'
+          : 'Không tải được danh mục mẫu.',
       message: form.tags.isEmpty
-          ? 'Bạn có thể bấm ${isLastStep ? 'Xem lịch trình mẫu' : 'Tiếp tục'} mà không chọn sở thích.'
+          ? 'Bạn có thể bấm ${isLastStep ? (ref.watch(liveBackendProvider) ? 'Tạo lịch trình' : 'Xem lịch trình mẫu') : 'Tiếp tục'} mà không chọn sở thích.'
           : 'Sở thích đã chọn chưa thể xác minh và vẫn được giữ nguyên. Hãy Thử lại hoặc quay lại bước Sở thích để bỏ lựa chọn.',
       onRetry: () {
         ref.read(plannerFormProvider.notifier).clearError('TagIds');
@@ -1186,6 +1197,8 @@ class _StyleStep extends ConsumerWidget {
                   label: 'Sở thích',
                   value: form.tags.isEmpty
                       ? 'Không chọn'
+                      : ref.watch(liveBackendProvider)
+                      ? '${form.tags.length} sở thích'
                       : '${form.tags.length} lựa chọn mẫu',
                   last: true,
                 ),
@@ -1199,7 +1212,9 @@ class _StyleStep extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           AppErrorState(
             compact: true,
-            title: 'Chưa tạo được bản mẫu',
+            title: ref.watch(liveBackendProvider)
+                ? 'Chưa tạo được lịch trình'
+                : 'Chưa tạo được bản mẫu',
             message: failure!,
             onRetry: onRetry,
           ),
@@ -1284,7 +1299,7 @@ class _ChoiceGridSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: 'Đang tải sở thích mẫu…',
+    label: 'Đang tải sở thích…',
     child: _ChoiceGrid(
       children: [
         for (var i = 0; i < 4; i++)
@@ -1390,13 +1405,13 @@ class _ChoiceCard extends StatelessWidget {
 
 /// Loading state while the local preview is prepared: a train dot runs
 /// along the rail and the checklist fills in.
-class _PlannerLoading extends StatefulWidget {
+class _PlannerLoading extends ConsumerStatefulWidget {
   const _PlannerLoading();
   @override
-  State<_PlannerLoading> createState() => _PlannerLoadingState();
+  ConsumerState<_PlannerLoading> createState() => _PlannerLoadingState();
 }
 
-class _PlannerLoadingState extends State<_PlannerLoading>
+class _PlannerLoadingState extends ConsumerState<_PlannerLoading>
     with SingleTickerProviderStateMixin {
   late final _train = AnimationController(
     vsync: this,
@@ -1430,7 +1445,9 @@ class _PlannerLoadingState extends State<_PlannerLoading>
           ),
           child: Semantics(
             liveRegion: true,
-            label: 'Đang tạo bản mẫu',
+            label: ref.watch(liveBackendProvider)
+                ? 'Đang tạo lịch trình'
+                : 'Đang tạo bản mẫu',
             child: Column(
               children: [
                 SizedBox(
@@ -1485,7 +1502,9 @@ class _PlannerLoadingState extends State<_PlannerLoading>
                   ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'Bản mẫu offline · Bạn có thể quay lại để điều chỉnh.',
+                  ref.watch(liveBackendProvider)
+                      ? 'Lịch trình được lưu dưới dạng bản nháp để bạn xem lại.'
+                      : 'Bản mẫu offline · Bạn có thể quay lại để điều chỉnh.',
                   textAlign: TextAlign.center,
                   style: text.bodySmall,
                 ),

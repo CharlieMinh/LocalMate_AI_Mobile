@@ -1,4 +1,6 @@
-# UI Audit — LocalMate AI Mobile (trước redesign)
+# UI Audit — LocalMate AI Mobile
+
+Mục 1–4 là audit **trước redesign** (giữ nguyên để đối chiếu). Mục 5 là trạng thái **sau redesign** (Giai đoạn 5, 27/10/2026).
 
 Ngày audit: 27/10/2026 · Branch: `feat/ui-redesign-v02` (tách từ `feature/v02-visual-alignment` @ `fb9a35b`)
 
@@ -117,3 +119,56 @@ Có trong thiết kế hoặc backend, nhưng Flutter chưa có:
 8. **Disclaimer dữ liệu mẫu.** Thay toàn bộ chuỗi "M3 OFFLINE…" bằng một nhãn nhỏ thống nhất "Dữ liệu minh họa", chỉ hiện khi build ở chế độ mock. Vẫn giữ nhãn độ chính xác lịch tàu ("ước tính", "khoảng X phút/chuyến") vì đó là nội dung nghiệp vụ. Đồng ý không?
 9. **Route `/private`.** Đây là bản sao của `/account`. Giữ route (theo quy tắc không đổi tên route) nhưng hiển thị y hệt Tài khoản, được không?
 10. **Bottom nav.** Thiết kế có 5 tab, web có 6 (thêm "Hội viên"). Tôi đề xuất giữ 5 tab và đặt Gói trong Tài khoản, đúng như thiết kế gốc.
+
+---
+
+## 5. Sau redesign (Giai đoạn 5)
+
+Ảnh "after": `docs/screenshots/after/` (chế độ mock, sáng và `-dark`) và `docs/screenshots/after/live-*.png` (chế độ backend, phản hồi thu từ backend thật). Ảnh vẫn render bằng widget test, không phải emulator.
+
+### 5.1 Bảng màn hình
+
+| Màn hình | Trước | Sau | Thay đổi chính | Còn lại |
+|---|---|---|---|---|
+| App shell + bottom nav | 7 | 9 | NavigationBar M3, header riêng từng tab, banner mất mạng thật (connectivity_plus) | — |
+| Trang chủ | 6 | 8.5 | Hero minh họa vector tuyến Metro, ô tìm kiếm thật, carousel địa điểm có ảnh/fallback theo danh mục, skeleton, pull-to-refresh | Ảnh seed đều `null` nên chủ yếu thấy fallback |
+| Khám phá | 5 | 8.5 | Search bar có xoá + IME search, chip đủ 4 danh mục từ backend, kết quả nhóm, empty/has-more có minh họa | — |
+| Chi tiết địa điểm | 5 | 8.5 | SliverAppBar ảnh + Hero, InfoRow có icon, đánh giá, giờ mở cửa theo tuần (khi backend có), mở Google Maps thật (live) | Chưa có danh sách đánh giá công khai (`/places/{id}/reviews`) |
+| Lịch trình mẫu (curated) | 6 | 8 | Timeline đầy đủ giờ/thời lượng/danh mục | Chưa có "Áp dụng" (`/curated/{id}/apply`) |
+| Metro | 6.5 | 9 | Sơ đồ tuyến đủ 14 ga, chọn ga có tìm không dấu, kết quả hành trình dạng tuyến | — |
+| Chi tiết ga | 6 | 8.5 | Lịch tàu dạng chip/hàng giãn cách, nhãn độ chính xác giữ nguyên quy tắc cũ | — |
+| Lịch trình của tôi | 4 | 8.5 | Danh sách Đã chốt / Bản nháp từ backend, khách được mời đăng nhập, bản mock giữ màn giới thiệu | Chưa có xoá / nhân bản chuyến |
+| Planner 4 bước | 6 | 8.5 | `PlannerFormController`, chip thời lượng + sheet 1–24 giờ, ngày/giờ bằng picker, ngân sách định dạng, "Điền giúp tôi bằng AI" (live) | Chưa gọi `feasibility-check` trước khi tạo |
+| Đang chuẩn bị | 7 | 8.5 | Checklist 3 bước có chuyển động | — |
+| Lịch trình nháp | 5.5 | 8.5 | Timeline + chặng (đi bộ / xe máy / Metro có ga lên-xuống), đổi điểm, xoá điểm, AI giải thích (live) | — |
+| Xác nhận chốt (sheet) | — | 8.5 | Bottom sheet xác nhận | — |
+| Lịch trình đã chốt | — | 8.5 | Tiến độ đã ghé, đánh dấu đã ghé, đánh giá điểm dừng, phản hồi chuyến đi | — |
+| Đăng nhập | 6 | 8.5 | BrandLockup chung, lỗi dạng banner, Quên mật khẩu / Tạo tài khoản / Google (live) | Google chỉ bật khi có `GOOGLE_SERVER_CLIENT_ID` |
+| Đăng ký + OTP, Quên mật khẩu | — | 8 | Form 2 bước, đếm ngược gửi lại mã, tự đăng nhập sau xác thực | Chưa chạy với SMTP thật |
+| Tài khoản | 5 | 8.5 | Thẻ hồ sơ + hạn mức thật, section card, menu, Giao diện (lưu trên thiết bị) | — |
+| Hồ sơ & cá nhân hóa | 5 | 8.5 | Sửa tên, sở thích, phong cách (live) | — |
+| Gói & quyền sử dụng | 5 | 8.5 | Card gói giá thật, thanh hạn mức, checkout PayOS | Chưa có mua lẻ một lượt chốt |
+| Thanh toán (`/payment-return`) | 3 | 8 | Theo dõi đơn tới khi Paid / Failed / Expired / ReviewRequired | Chưa chạy với PayOS thật |
+| Thông báo | — | 8 | Danh sách, chấm chưa đọc, đọc hết, số chưa đọc ở Tài khoản | Không có push notification (backend không hỗ trợ) |
+| Phiên mẫu (`/private`) | 3 | 8 | Dùng lại trang Tài khoản | — |
+| Trang lỗi router | 4 | 8 | `AppStateView` có minh họa + về trang chủ | — |
+
+### 5.2 Vấn đề xuyên suốt: trước → sau
+
+| Vấn đề | Trước | Sau |
+|---|---|---|
+| Thang chữ | 12 cỡ, 2 hệ song song | 1 `TextTheme` Be Vietnam Pro; tối đa 3–4 cỡ mỗi màn |
+| Màu hardcode | `Brand.*` 139 lần | 0; màu qua `ColorScheme` + `AppColors` (ThemeExtension). Hex còn lại chỉ ở `lib/dev/previews` (công cụ debug) |
+| Literal spacing | 158 `SizedBox`, 49 `EdgeInsets`, 46 `TextStyle(` số cứng | Lưới 8pt qua `AppSpacing`/`AppRadius`; số cứng chỉ còn trong `lib/dev/previews` |
+| Dark mode | Không có | Sáng/Tối/Theo hệ thống; kiểm tương phản WCAG trong `design_tokens_test.dart` và `accessibility_test.dart` |
+| Trạng thái | Text trần | Skeleton, empty, error, offline (mất mạng thật) cho mọi màn tải dữ liệu |
+| Chuyển động | Không | SharedAxis chuyển trang, Hero ảnh địa điểm, stagger danh sách, haptic (150–350ms) |
+| Chuỗi dành cho dev | "M3 OFFLINE"... lộ ra | Nhãn "Dữ liệu minh họa" chỉ ở bản mock; bản live có test quét để không lọt chữ của bản mock |
+| Kết nối dữ liệu | Mock fail-closed | Mock mặc định; live qua `API_BASE_URL` (xem `LIVE_BACKEND.md`) |
+
+### 5.3 Kiểm tra đã chạy
+
+- **Kích thước × cỡ chữ × giao diện**: `tool/redesign_capture_test.dart` (mock) và `tool/live_capture_test.dart` (live) chạy cùng ma trận 390×844 sáng/tối, 360×640 chữ 1.3, 393×852 chữ 1.3 tối, 430×932 chữ 1.3, 320×640 chữ 2.0. Không có lỗi layout/tràn.
+- **Khả năng tiếp cận**: `test/accessibility_test.dart` kiểm vùng chạm ≥48dp, nhãn cho phần tử bấm được và tương phản chữ trên các màn chính và các bottom sheet, chế độ mock và live, sáng và tối.
+- `flutter analyze`: sạch. `flutter test`: 311 test pass. `flutter build web --release`: thành công.
+- **Chưa chạy**: `flutter build apk` (máy không có Android SDK), chạy trên thiết bị/emulator thật.

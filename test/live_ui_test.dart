@@ -541,8 +541,9 @@ void main() {
   testWidgets('live mode never shows mock-build wording', (tester) async {
     // Copy that only makes sense in the offline build.
     final mockOnly = RegExp(
-      r'offline|Offline|tài khoản mẫu|dữ liệu mẫu|bộ mẫu|phiên mẫu|'
-      r'Tạo lịch trình mẫu|xem lịch trình mẫu|lịch mẫu|ước tính mẫu',
+      r'offline|Offline|tài khoản mẫu|dữ liệu mẫu|bộ mẫu|phiên mẫu|bản mẫu|'
+      r'Tạo lịch trình mẫu|xem lịch trình mẫu|lịch mẫu|ước tính mẫu|'
+      r'sở thích mẫu|danh mục mẫu|lựa chọn mẫu',
     );
     final container = await boot(tester, route: '/home');
     final router = container.read(routerProvider);
@@ -573,6 +574,17 @@ void main() {
     await tester.pumpAndSettle();
     for (final route in ['/account', '/trips', '/trips/${backend.tripId}']) {
       await check(route);
+    }
+    router.go('/home');
+    await tester.pumpAndSettle();
+    router.push('/planner');
+    await tester.pumpAndSettle();
+    for (var step = 1; step <= 4; step++) {
+      final leaks = visibleText().where(mockOnly.hasMatch).toList();
+      expect(leaks, isEmpty, reason: 'planner step $step');
+      if (step < 4) {
+        await tap(tester, find.widgetWithText(FilledButton, 'Tiếp tục'));
+      }
     }
     await finish(tester, container);
   });
