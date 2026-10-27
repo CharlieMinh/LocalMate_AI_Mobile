@@ -714,4 +714,28 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await finish(tester, container);
   });
+
+  for (final all in [false, true]) {
+    testWidgets(
+      'leaving Notifications mid-${all ? 'read-all' : 'read'} still updates the badge',
+      (tester) async {
+        backend.readGate = Completer<void>();
+        final container = await boot(tester, route: '/account', signIn: true);
+        expect(find.text('1 chưa đọc'), findsOneWidget);
+        await tap(tester, find.text('Thông báo'));
+        if (all) {
+          await tap(tester, find.byTooltip('Đánh dấu đã đọc tất cả'));
+        } else {
+          await tap(tester, find.text('Lịch trình đã được chốt'));
+        }
+        await tap(tester, find.byTooltip('Quay lại')); // leave meanwhile
+        backend.readGate!.complete();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(backend.calls, contains(all ? 'read-all' : 'notification-read'));
+        expect(find.text('1 chưa đọc'), findsNothing);
+        await finish(tester, container);
+      },
+    );
+  }
 }

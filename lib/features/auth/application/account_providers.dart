@@ -105,6 +105,8 @@ class NotificationFeedController extends AsyncNotifier<NotificationFeed> {
   void markedAllRead() => _update((n) => n.isRead ? n : n.read());
 
   void _update(AppNotification Function(AppNotification) change) {
+    // A read can finish after the page left and the feed was disposed.
+    if (!ref.mounted) return;
     final current = state.value;
     if (current == null) return;
     state = AsyncData(

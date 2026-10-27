@@ -779,14 +779,17 @@ class NotificationsPage extends ConsumerWidget {
     AppNotification n,
   ) async {
     if (!n.isRead) {
+      // Read up front: the page may be left before the server answers,
+      // and the account badge must still update.
+      final container = ProviderScope.containerOf(context, listen: false);
       final feed = ref.read(notificationFeedProvider.notifier);
       try {
-        await ref.read(accountRepositoryProvider).markRead(n.id);
+        await container.read(accountRepositoryProvider).markRead(n.id);
         feed.markedRead(n.id);
       } on ApiFailure catch (_) {
         // Reading the target still works; the badge refreshes later.
       }
-      if (context.mounted) ref.invalidate(unreadCountProvider);
+      container.invalidate(unreadCountProvider);
     }
     if (!context.mounted) return;
     switch (n.targetType) {
@@ -802,11 +805,12 @@ class NotificationsPage extends ConsumerWidget {
 
   Future<void> _readAll(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    final container = ProviderScope.containerOf(context, listen: false);
     final feed = ref.read(notificationFeedProvider.notifier);
     try {
-      await ref.read(accountRepositoryProvider).markAllRead();
+      await container.read(accountRepositoryProvider).markAllRead();
       feed.markedAllRead();
-      if (context.mounted) ref.invalidate(unreadCountProvider);
+      container.invalidate(unreadCountProvider);
     } on ApiFailure catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
     }

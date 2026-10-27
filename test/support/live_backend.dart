@@ -85,6 +85,9 @@ class LiveBackend {
   /// When set, finalize waits for it (to leave the page meanwhile).
   Completer<void>? finalizeGate;
 
+  /// When set, marking notifications read waits for it.
+  Completer<void>? readGate;
+
   /// The dev backend has no PayOS config (502). When true, checkout answers
   /// with the contract's PaymentIntentResponse shape instead.
   bool payosConfigured = false;
@@ -344,11 +347,13 @@ class LiveBackend {
     'GET /notifications': _notifications,
     'GET /notifications/unread-count': (_) =>
         reply(jsonEncode({'count': notificationRead ? 0 : 1})),
-    'POST /notifications/01f7969d-83fc-4c39-aa7b-3ab90bd90b63/read': (r) {
+    'POST /notifications/01f7969d-83fc-4c39-aa7b-3ab90bd90b63/read': (r) async {
+      await readGate?.future;
       notificationRead = true;
       return _write('notification-read', r, reply('', status: 204));
     },
-    'POST /notifications/read-all': (r) {
+    'POST /notifications/read-all': (r) async {
+      await readGate?.future;
       notificationRead = true;
       return _write('read-all', r, reply('', status: 204));
     },
