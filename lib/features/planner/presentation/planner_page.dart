@@ -172,18 +172,23 @@ class _HowItWorks extends StatelessWidget {
 }
 
 class PlannerPage extends ConsumerWidget {
-  const PlannerPage({super.key});
+  const PlannerPage({super.key, this.initialStation});
+
+  /// Departure station to preselect (e.g. from a place's nearest station).
+  final int? initialStation;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Re-key on auth changes so text controllers reset together with the
     // form controller (which also rebuilds on auth transitions).
     final auth = ref.watch(authProvider);
-    return _PlannerForm(key: ObjectKey(auth));
+    return _PlannerForm(key: ObjectKey(auth), initialStation: initialStation);
   }
 }
 
 class _PlannerForm extends ConsumerStatefulWidget {
-  const _PlannerForm({super.key});
+  const _PlannerForm({super.key, this.initialStation});
+  final int? initialStation;
   @override
   ConsumerState<_PlannerForm> createState() => _PlannerFormState();
 }
@@ -219,6 +224,13 @@ class _PlannerFormState extends ConsumerState<_PlannerForm>
     budget = TextEditingController(text: initial.budget);
     note = TextEditingController(text: initial.note);
     WidgetsBinding.instance.addObserver(this);
+    final station = widget.initialStation;
+    if (station != null && plannerStations.any((s) => s.order == station)) {
+      // Providers cannot change while the tree is building.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) form.setOrigin(station);
+      });
+    }
   }
 
   @override

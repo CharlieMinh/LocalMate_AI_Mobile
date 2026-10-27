@@ -765,14 +765,20 @@ class _PlaceDetailViewState extends ConsumerState<_PlaceDetailView> {
       bottomNavigationBar: AppBottomActionBar(
         children: [
           AppButton(
-            label: p.stationName != null
+            label: p.stationOrder != null
                 ? 'Tạo lịch trình quanh ga này'
                 : ref.watch(mockDataProvider)
                 ? 'Tạo lịch trình mẫu'
                 : 'Tạo lịch trình',
             icon: LucideIcons.sparkles,
             haptic: true,
-            onPressed: () => context.push('/planner'),
+            buttonKey: const ValueKey('place-plan-here'),
+            // The planner starts from this place's station.
+            onPressed: () => context.push(
+              p.stationOrder == null
+                  ? '/planner'
+                  : '/planner?station=${p.stationOrder}',
+            ),
           ),
         ],
       ),

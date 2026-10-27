@@ -19,6 +19,8 @@ import 'package:localmate_ai_mobile/features/discovery/data/discovery_repository
 import 'package:localmate_ai_mobile/features/discovery/domain/discovery_models.dart';
 import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_pages.dart';
 import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_widgets.dart';
+import 'package:localmate_ai_mobile/features/planner/application/planner_form_controller.dart';
+import 'package:localmate_ai_mobile/features/planner/presentation/planner_page.dart';
 
 import 'support/fake_session_store.dart';
 import 'discovery_offline_test.dart' show loadStationFixtures, jsonReply;
@@ -353,6 +355,23 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('"plan around this station" starts the planner there', (
+    tester,
+  ) async {
+    final container = await boot(
+      tester,
+      route: '/places/10000000-0000-0000-0000-000000000002',
+    );
+    await tapVisible(tester, find.byKey(const ValueKey('place-plan-here')));
+    expect(container.read(plannerFormProvider).origin, 2);
+    expect(find.text(plannerStationName(2)), findsWidgets);
+    // A fresh planner with a bad value keeps the default.
+    container.read(routerProvider).go('/home');
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/planner?station=99');
+    await tester.pumpAndSettle();
+    expect(container.read(plannerFormProvider).origin, 1);
+  });
   testWidgets('unknown precision never renders exact trips', (tester) async {
     final schedule = MetroSchedule.fromJson({
       ...scheduleMetadata,

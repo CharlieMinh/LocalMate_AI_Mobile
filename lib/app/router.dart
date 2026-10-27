@@ -60,7 +60,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         builder: (_, _) => const NotificationsPage(),
       ),
-      GoRoute(path: '/planner', builder: (_, _) => const PlannerPage()),
+      GoRoute(
+        path: '/planner',
+        // Optional `?station=<order>` preselects the departure station.
+        builder: (_, state) => PlannerPage(
+          initialStation: int.tryParse(
+            state.uri.queryParameters['station'] ?? '',
+          ),
+        ),
+      ),
       GoRoute(
         path: '/planner/preview/:key',
         builder: (_, state) =>
