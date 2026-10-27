@@ -9,9 +9,11 @@ abstract interface class AuthService {
   Future<AuthProfile> profile(String accessToken, CancelToken token);
 }
 
+/// `POST /auth/login` + `GET /users/me` over any [ApiClient] (fixtures in
+/// the mock build, the backend in live builds).
 class MockTransportAuthService implements AuthService {
   const MockTransportAuthService(this.client);
-  final MockApiClient client;
+  final ApiClient client;
   @override
   Future<LoginResponse> login(LoginRequest request, CancelToken token) =>
       client.post(

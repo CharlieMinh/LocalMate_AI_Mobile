@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/400","title":"One or more validation errors occurred.","status":400,"instance":"/api/trips/generate","errors":{"DurationHours":["'Duration Hours' must be between 1 and 24. You entered 30."]}}

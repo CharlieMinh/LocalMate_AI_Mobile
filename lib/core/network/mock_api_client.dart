@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import 'api_client.dart';
 import 'api_failure.dart';
-import '../session/session_scope.dart';
+
+export 'api_client.dart';
 
 typedef MockReply = FutureOr<ResponseBody> Function(RequestOptions request);
 
@@ -44,78 +46,16 @@ class FailClosedAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-class MockApiClient {
+/// Fixture-backed client used by the mock build and tests.
+class MockApiClient extends ApiClient {
   MockApiClient({Map<String, MockReply> fixtures = const {}})
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://mock.invalid',
-          connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
-        ),
-      ) {
-    _dio.httpClientAdapter = FailClosedAdapter(fixtures);
-  }
-  final Dio _dio;
-
-  Future<T> getOwned<T>(
-    SessionScope session,
-    String path,
-    T Function(Object?) decode,
-  ) => session.runOwned((token) => get(path, decode, cancelToken: token));
-
-  Future<T> get<T>(
-    String path,
-    T Function(Object?) decode, {
-    CancelToken? cancelToken,
-    Map<String, String>? headers,
-    Map<String, Object?>? query,
-  }) async {
-    return _request(
-      'GET',
-      path,
-      decode,
-      cancelToken: cancelToken,
-      headers: headers,
-      query: query,
-    );
-  }
-
-  Future<T> post<T>(
-    String path,
-    Object body,
-    T Function(Object?) decode, {
-    CancelToken? cancelToken,
-  }) => _request('POST', path, decode, body: body, cancelToken: cancelToken);
-
-  Future<T> _request<T>(
-    String method,
-    String path,
-    T Function(Object?) decode, {
-    Object? body,
-    CancelToken? cancelToken,
-    Map<String, String>? headers,
-    Map<String, Object?>? query,
-  }) async {
-    try {
-      final response = await _dio.request<Object?>(
-        path,
-        data: body,
-        queryParameters: query,
-        options: Options(method: method, headers: headers),
-        cancelToken: cancelToken,
+    : super(
+        Dio(
+          BaseOptions(
+            baseUrl: 'https://mock.invalid',
+            connectTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 5),
+          ),
+        )..httpClientAdapter = FailClosedAdapter(fixtures),
       );
-      return decode(response.data);
-    } on DioException catch (error) {
-      if (CancelToken.isCancel(error)) {
-        throw const ApiFailure(FailureKind.cancelled);
-      }
-      if (error.error is ApiFailure) throw error.error as ApiFailure;
-      if (error.response case final response?) {
-        throw ApiFailure.fromResponse(response.statusCode ?? 0, response.data);
-      }
-      throw const ApiFailure(FailureKind.unavailable);
-    }
-  }
-
-  void dispose() => _dio.close(force: true);
 }

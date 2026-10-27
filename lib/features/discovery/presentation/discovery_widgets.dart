@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../app/ui_providers.dart';
 import '../../../core/network/api_failure.dart';
+import '../../../core/network/api_messages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
@@ -89,13 +90,15 @@ class DiscoveryAsync<T> extends ConsumerWidget {
   final WidgetBuilder? loading;
   final bool compact;
 
-  static String errorMessage(Object error) {
+  static String errorMessage(Object error, {bool mock = true}) {
     final failure = error is ApiFailure ? error : null;
-    return failure?.status == 404
-        ? 'Dữ liệu chưa khả dụng trong bộ mẫu này.'
-        : failure?.kind == FailureKind.validation
-        ? failure!.fields.values.expand((e) => e).join('\n')
-        : 'Chưa tải được dữ liệu. Vui lòng thử lại.';
+    if (failure == null) return 'Chưa tải được dữ liệu. Vui lòng thử lại.';
+    if (failure.status == 404 && failure.code == null) {
+      return mock
+          ? 'Dữ liệu chưa khả dụng trong bộ mẫu này.'
+          : 'Dữ liệu không còn khả dụng.';
+    }
+    return apiErrorMessage(failure);
   }
 
   @override
@@ -103,11 +106,13 @@ class DiscoveryAsync<T> extends ConsumerWidget {
     skipLoadingOnRefresh: false,
     data: data,
     loading: () => loading?.call(context) ?? const _GenericSkeleton(),
-    error: (error, stack) => isOffline(ref)
+    error: (error, stack) =>
+        isOffline(ref) ||
+            (error is ApiFailure && error.kind == FailureKind.offline)
         ? AppOfflineState(onRetry: retry, compact: compact)
         : AppErrorState(
             title: 'Không thể tải dữ liệu',
-            message: errorMessage(error),
+            message: errorMessage(error, mock: ref.watch(mockDataProvider)),
             onRetry: retry,
             compact: compact,
           ),

@@ -6,11 +6,13 @@ abstract interface class SessionStore {
   Future<void> clear();
 }
 
-/// Isolated offline namespace: never restore a Backend token as a mock identity.
+/// Separate namespaces: a backend token is never restored as a mock identity
+/// and vice versa.
 class SecureSessionStore implements SessionStore {
-  const SecureSessionStore(this._storage);
+  const SecureSessionStore(this._storage, {this.live = false});
   final FlutterSecureStorage _storage;
-  static const _key = 'localmate.offline.auth.v1';
+  final bool live;
+  String get _key => live ? 'localmate.auth.v1' : 'localmate.offline.auth.v1';
   @override
   Future<String?> read() => _storage.read(key: _key);
   @override

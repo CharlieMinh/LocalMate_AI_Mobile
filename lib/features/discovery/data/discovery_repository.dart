@@ -5,7 +5,7 @@ import '../domain/discovery_models.dart';
 
 class DiscoveryRepository {
   const DiscoveryRepository(this.client);
-  final MockApiClient client;
+  final ApiClient client;
   Future<List<Station>> stations(CancelToken token) => client.get(
     '/master-data',
     (raw) => rows(object(raw)['metroStations'], Station.fromJson),

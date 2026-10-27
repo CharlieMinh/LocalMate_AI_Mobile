@@ -1,11 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
 import '../data/discovery_fixtures.dart';
 import '../data/discovery_repository.dart';
 import '../domain/discovery_models.dart';
 
 final discoveryRepositoryProvider = Provider<DiscoveryRepository>((ref) {
+  if (!ref.watch(configProvider).mockOnly) {
+    return DiscoveryRepository(ref.watch(apiProvider));
+  }
   final client = discoveryFixtureClient();
   ref.onDispose(client.dispose);
   return DiscoveryRepository(client);

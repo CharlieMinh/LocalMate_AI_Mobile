@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/network/api_failure.dart';
+import '../../../core/session/access_token.dart';
 import '../../../core/session/session_scope.dart';
 import '../../../core/session/session_store.dart';
 import '../data/auth_repository.dart';
@@ -27,6 +28,11 @@ final authNowProvider = Provider<DateTime Function()>(
       () => DateTime.now().toUtc(),
 );
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  if (!ref.watch(configProvider).mockOnly) {
+    return ServiceAuthRepository(
+      MockTransportAuthService(ref.watch(apiProvider)),
+    );
+  }
   final client = offlineAuthClient(ref.read(authNowProvider));
   ref.onDispose(client.dispose);
   return ServiceAuthRepository(MockTransportAuthService(client));
@@ -40,6 +46,8 @@ class AuthController extends Notifier<AuthState> {
   late SessionStore _store;
   late SessionScope _scope;
   late DateTime Function() _now;
+  late AccessTokenHolder _tokens;
+  bool _live = false;
   bool _alive = true;
   int _operation = 0;
   CancelToken? _cancel;
@@ -54,7 +62,16 @@ class AuthController extends Notifier<AuthState> {
     _store = ref.watch(sessionStoreProvider);
     _scope = ref.watch(sessionProvider);
     _now = ref.watch(authNowProvider);
+    _live = !ref.watch(configProvider).mockOnly;
+    _tokens = ref.watch(accessTokenProvider)
+      ..token = null
+      ..onUnauthorized = () {
+        if (_session != null) unawaited(logout(notice: _expiredNotice));
+      };
     ref.onDispose(() {
+      _tokens
+        ..token = null
+        ..onUnauthorized = null;
       _alive = false;
       _operation++;
       _cancel?.cancel('disposed');
@@ -76,6 +93,7 @@ class AuthController extends Notifier<AuthState> {
     _expiry?.cancel();
     _cancel = CancelToken();
     _session = null;
+    _tokens.token = null;
     _scope.changeOwner(null);
     return ++_operation;
   }
@@ -88,7 +106,7 @@ class AuthController extends Notifier<AuthState> {
       if (session == null) {
         await _store.clear();
       } else {
-        await _store.write(session.encodeOffline());
+        await _store.write(session.encode(live: _live));
         if (!_current(operation)) await _store.clear();
       }
     });
@@ -107,14 +125,11 @@ class AuthController extends Notifier<AuthState> {
         state = const AuthState(AuthPhase.signedOut);
         return;
       }
-      final login = AuthSession.decodeOffline(raw);
+      final login = AuthSession.decode(raw, live: _live);
       if (!login.expiresAt.isAfter(_now())) {
         await _persist(operation, null);
         if (_current(operation)) {
-          state = const AuthState(
-            AuthPhase.signedOut,
-            notice: 'Phiên mẫu đã hết hạn.',
-          );
+          state = AuthState(AuthPhase.signedOut, notice: _expiredNotice);
         }
         return;
       }
@@ -124,7 +139,7 @@ class AuthController extends Notifier<AuthState> {
       if (!_current(operation)) return;
       final problem = _failure(error);
       // Retain an unexpired session on transport failure for explicit retry.
-      if (problem.kind != FailureKind.unavailable) {
+      if (!problem.isTransport) {
         try {
           await _persist(operation, null);
         } catch (_) {
@@ -174,7 +189,7 @@ class AuthController extends Notifier<AuthState> {
     required bool persist,
   }) async {
     if (!_current(operation)) return;
-    if (!session.login.accessToken.startsWith('mock-only:')) {
+    if (session.login.accessToken.startsWith('mock-only:') == _live) {
       throw const FormatException('Wrong session mode');
     }
     if (!session.login.expiresAt.isAfter(_now())) {
@@ -187,6 +202,7 @@ class AuthController extends Notifier<AuthState> {
       throw const ApiFailure(FailureKind.unauthorized, code: 'session_expired');
     }
     _session = session;
+    _tokens.token = session.login.accessToken;
     _scope.changeOwner(session.profile.id);
     state = AuthState(AuthPhase.signedIn, profile: session.profile);
     _expiry = Timer(session.login.expiresAt.difference(_now()), checkExpiry);
@@ -196,7 +212,7 @@ class AuthController extends Notifier<AuthState> {
     if (!_alive) return;
     final expiry = _session?.login.expiresAt;
     if (expiry != null && !expiry.isAfter(_now())) {
-      unawaited(logout(notice: 'Phiên mẫu đã hết hạn.'));
+      unawaited(logout(notice: _expiredNotice));
     }
   }
 
@@ -218,6 +234,10 @@ class AuthController extends Notifier<AuthState> {
       }
     }
   }
+
+  String get _expiredNotice => _live
+      ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+      : 'Phiên mẫu đã hết hạn.';
 
   void cancelPendingLogin() {
     if (!_alive || state.phase != AuthPhase.submitting) return;
