@@ -31,7 +31,11 @@ void main() {
 
     await tester.pumpWidget(
       _host(
-        AppButton(label: 'Tạo lịch trình', loading: true, onPressed: () => taps++),
+        AppButton(
+          label: 'Tạo lịch trình',
+          loading: true,
+          onPressed: () => taps++,
+        ),
       ),
     );
     await tester.tap(find.text('Tạo lịch trình'), warnIfMissed: false);
@@ -43,9 +47,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _host(
-        AppIconButton(icon: Icons.add, tooltip: 'Thêm', onPressed: () {}),
-      ),
+      _host(AppIconButton(icon: Icons.add, tooltip: 'Thêm', onPressed: () {})),
     );
     final size = tester.getSize(find.byType(IconButton));
     expect(size.width, greaterThanOrEqualTo(48));
@@ -117,7 +119,10 @@ void main() {
     var retried = false;
     await tester.pumpWidget(
       _host(
-        AppErrorState(message: 'Không tải được.', onRetry: () => retried = true),
+        AppErrorState(
+          message: 'Không tải được.',
+          onRetry: () => retried = true,
+        ),
       ),
     );
     await tester.tap(find.text('Thử lại'));

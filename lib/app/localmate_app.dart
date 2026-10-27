@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../shared/theme/app_theme.dart';
+import '../core/theme/app_theme.dart';
 import 'providers.dart';
 import 'router.dart';
+import 'ui_providers.dart';
 import '../features/auth/application/auth_controller.dart';
 
 class LocalMateApp extends ConsumerStatefulWidget {
@@ -43,7 +44,9 @@ class _LocalMateAppState extends ConsumerState<LocalMateApp>
       locale: const Locale('vi'),
       supportedLocales: const [Locale('vi')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: Brand.theme,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ref.watch(themeModeProvider),
       routerConfig: ref.watch(routerProvider),
     );
   }

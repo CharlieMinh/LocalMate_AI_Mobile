@@ -18,7 +18,9 @@ Future<void> _loadFonts() async {
   }
   await brand.load();
   final lucide = FontLoader('packages/lucide_icons_flutter/Lucide')
-    ..addFont(rootBundle.load('packages/lucide_icons_flutter/assets/lucide.ttf'));
+    ..addFont(
+      rootBundle.load('packages/lucide_icons_flutter/assets/lucide.ttf'),
+    );
   await lucide.load();
   final material = FontLoader('MaterialIcons')
     ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
@@ -70,9 +72,10 @@ void main() {
         expect(tester.takeException(), isNull, reason: '$name page $page');
         if (config.save) {
           await tester.runAsync(() async {
-            final image = await (boundary.currentContext!.findRenderObject()!
-                    as RenderRepaintBoundary)
-                .toImage(pixelRatio: 2);
+            final image =
+                await (boundary.currentContext!.findRenderObject()!
+                        as RenderRepaintBoundary)
+                    .toImage(pixelRatio: 2);
             final png = await image.toByteData(format: ui.ImageByteFormat.png);
             final file = File(
               'docs/screenshots/gallery/$name-${(page + 1).toString().padLeft(2, '0')}.png',

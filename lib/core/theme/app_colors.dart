@@ -24,6 +24,9 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.food,
     required this.culture,
     required this.checkIn,
+    required this.heroStart,
+    required this.heroEnd,
+    required this.onHero,
   });
 
   final Color metroLine;
@@ -42,6 +45,12 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color culture;
   final Color checkIn;
 
+  /// Brand hero gradient (Home banner) and its foreground. Stays deep in
+  /// dark mode so white text keeps contrast.
+  final Color heroStart;
+  final Color heroEnd;
+  final Color onHero;
+
   static const light = AppColors(
     metroLine: AppPalette.metroLine,
     metroLineContainer: AppPalette.metroLineContainer,
@@ -58,6 +67,9 @@ class AppColors extends ThemeExtension<AppColors> {
     food: AppPalette.food,
     culture: AppPalette.navy,
     checkIn: AppPalette.checkIn,
+    heroStart: AppPalette.navy,
+    heroEnd: AppPalette.metroLine,
+    onHero: AppPalette.white,
   );
 
   static const dark = AppColors(
@@ -76,6 +88,9 @@ class AppColors extends ThemeExtension<AppColors> {
     food: AppPalette.foodDark,
     culture: AppPalette.navyDark,
     checkIn: AppPalette.checkInDark,
+    heroStart: AppPalette.navyContainerDark,
+    heroEnd: AppPalette.metroLineContainerDark,
+    onHero: AppPalette.white,
   );
 
   Color category(PlaceCategoryTone tone) => switch (tone) {
@@ -103,6 +118,9 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? food,
     Color? culture,
     Color? checkIn,
+    Color? heroStart,
+    Color? heroEnd,
+    Color? onHero,
   }) => AppColors(
     metroLine: metroLine ?? this.metroLine,
     metroLineContainer: metroLineContainer ?? this.metroLineContainer,
@@ -119,6 +137,9 @@ class AppColors extends ThemeExtension<AppColors> {
     food: food ?? this.food,
     culture: culture ?? this.culture,
     checkIn: checkIn ?? this.checkIn,
+    heroStart: heroStart ?? this.heroStart,
+    heroEnd: heroEnd ?? this.heroEnd,
+    onHero: onHero ?? this.onHero,
   );
 
   @override
@@ -141,6 +162,9 @@ class AppColors extends ThemeExtension<AppColors> {
       food: l(food, other.food),
       culture: l(culture, other.culture),
       checkIn: l(checkIn, other.checkIn),
+      heroStart: l(heroStart, other.heroStart),
+      heroEnd: l(heroEnd, other.heroEnd),
+      onHero: l(onHero, other.onHero),
     );
   }
 }

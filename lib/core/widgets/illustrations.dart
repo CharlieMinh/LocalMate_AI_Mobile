@@ -80,10 +80,22 @@ class _SpotPainter extends CustomPainter {
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
     if (kind == IllustrationKind.offline) {
-      canvas.drawLine(Offset(w * .14, railY), Offset(w * .42, railY), railPaint);
-      canvas.drawLine(Offset(w * .58, railY), Offset(w * .86, railY), railPaint);
+      canvas.drawLine(
+        Offset(w * .14, railY),
+        Offset(w * .42, railY),
+        railPaint,
+      );
+      canvas.drawLine(
+        Offset(w * .58, railY),
+        Offset(w * .86, railY),
+        railPaint,
+      );
     } else {
-      canvas.drawLine(Offset(w * .14, railY), Offset(w * .86, railY), railPaint);
+      canvas.drawLine(
+        Offset(w * .14, railY),
+        Offset(w * .86, railY),
+        railPaint,
+      );
     }
     for (final x in [.22, .5, .78]) {
       if (kind == IllustrationKind.offline && x == .5) continue;
@@ -123,7 +135,10 @@ class _SpotPainter extends CustomPainter {
         final pin = Path()
           ..moveTo(tip.dx, tip.dy)
           ..quadraticBezierTo(w * .34, w * .4, w * .36, head.dy)
-          ..arcToPoint(Offset(w * .64, head.dy), radius: Radius.circular(w * .14))
+          ..arcToPoint(
+            Offset(w * .64, head.dy),
+            radius: Radius.circular(w * .14),
+          )
           ..quadraticBezierTo(w * .66, w * .4, tip.dx, tip.dy)
           ..close();
         canvas.drawPath(pin, accentFill);
@@ -134,7 +149,11 @@ class _SpotPainter extends CustomPainter {
           ..strokeCap = StrokeCap.round;
         for (var i = 0; i < 4; i++) {
           final x = w * (.2 + i * .05);
-          canvas.drawLine(Offset(x, w * .5), Offset(x + w * .025, w * .48), dash);
+          canvas.drawLine(
+            Offset(x, w * .5),
+            Offset(x + w * .025, w * .48),
+            dash,
+          );
         }
       case IllustrationKind.offline:
         // Signal arcs with a slash.
@@ -161,7 +180,11 @@ class _SpotPainter extends CustomPainter {
           ..close();
         canvas.drawPath(tri, Paint()..color = surface);
         canvas.drawPath(tri, accentStroke..strokeJoin = StrokeJoin.round);
-        canvas.drawLine(Offset(w * .5, w * .3), Offset(w * .5, w * .41), accentStroke);
+        canvas.drawLine(
+          Offset(w * .5, w * .3),
+          Offset(w * .5, w * .41),
+          accentStroke,
+        );
         canvas.drawCircle(Offset(w * .5, w * .46), stroke * .7, accentFill);
       case IllustrationKind.success:
         final o = Offset(w * .5, w * .38);
@@ -229,8 +252,13 @@ class _HeroPainter extends CustomPainter {
     // Skyline blocks (fractions of width/height).
     final skyline = Paint()..color = color.withValues(alpha: .10);
     const blocks = [
-      [.52, .40, .06], [.59, .28, .05], [.65, .46, .07], [.73, .34, .05],
-      [.79, .52, .06], [.86, .30, .05], [.92, .44, .08],
+      [.52, .40, .06],
+      [.59, .28, .05],
+      [.65, .46, .07],
+      [.73, .34, .05],
+      [.79, .52, .06],
+      [.86, .30, .05],
+      [.92, .44, .08],
     ];
     for (final b in blocks) {
       canvas.drawRRect(

@@ -31,7 +31,10 @@ class AppLargeTitleBar extends StatelessWidget {
       automaticallyImplyLeading: false,
       leading: canPop ? const AppBackButton() : null,
       title: Text(title),
-      actions: [...actions, const SizedBox(width: AppSpacing.sm)],
+      actions: [
+        ...actions,
+        const SizedBox(width: AppSpacing.sm),
+      ],
       bottom: bottom,
     );
   }
@@ -63,7 +66,10 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: transparent ? Colors.transparent : null,
       leading: canPop ? const AppBackButton() : null,
       title: Text(title),
-      actions: [...actions, const SizedBox(width: AppSpacing.sm)],
+      actions: [
+        ...actions,
+        const SizedBox(width: AppSpacing.sm),
+      ],
     );
   }
 }
@@ -109,32 +115,51 @@ class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  /// Two-word labels wrap ("Trang\nchủ") when one line would not fit a
+  /// fifth of the width: enlarged text or very narrow phones.
+  static bool usesTallLabels(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: AppSizes.maxChromeTextScale);
+    const base = 12.0;
+    const narrowPhone = 360.0;
+    const wrapAt = 1.15;
+    return scale.scale(base) > base * wrapAt ||
+        MediaQuery.sizeOf(context).width < narrowPhone;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = context.colors;
+    final tall = usesTallLabels(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surface,
         border: Border(top: BorderSide(color: scheme.outline)),
-        boxShadow: context.isDark ? null : AppShadows.soft(context.appColors.shadow),
+        boxShadow: context.isDark
+            ? null
+            : AppShadows.soft(context.appColors.shadow),
       ),
-      child: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          if (index != selectedIndex) AppHaptics.selection();
-          onSelected(index);
-        },
-        animationDuration: AppDurations.medium,
-        destinations: [
-          for (final d in destinations)
-            NavigationDestination(
-              key: d.key,
-              icon: Icon(d.icon),
-              selectedIcon: Icon(d.selectedIcon ?? d.icon),
-              label: d.label,
-              tooltip: d.label,
-            ),
-        ],
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: AppSizes.maxChromeTextScale,
+        child: NavigationBar(
+          height: tall ? AppSizes.navBarHeightTall : AppSizes.navBarHeight,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) {
+            if (index != selectedIndex) AppHaptics.selection();
+            onSelected(index);
+          },
+          animationDuration: AppDurations.medium,
+          destinations: [
+            for (final d in destinations)
+              NavigationDestination(
+                key: d.key,
+                icon: Icon(d.icon),
+                selectedIcon: Icon(d.selectedIcon ?? d.icon),
+                label: tall ? d.label.replaceAll(' ', '\n') : d.label,
+                tooltip: d.label,
+              ),
+          ],
+        ),
       ),
     );
   }

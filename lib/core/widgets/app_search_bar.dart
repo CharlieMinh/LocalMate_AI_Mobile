@@ -72,7 +72,9 @@ class _AppSearchBarState extends State<AppSearchBar> {
       color: context.isDark ? scheme.surfaceContainer : scheme.surface,
       borderRadius: AppRadius.control,
       border: Border.all(color: scheme.outline),
-      boxShadow: context.isDark ? null : AppShadows.soft(context.appColors.shadow),
+      boxShadow: context.isDark
+          ? null
+          : AppShadows.soft(context.appColors.shadow),
     );
     final icon = Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -96,7 +98,9 @@ class _AppSearchBarState extends State<AppSearchBar> {
             borderRadius: AppRadius.control,
             pressedScale: 1,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: AppSizes.fieldHeight),
+              constraints: const BoxConstraints(
+                minHeight: AppSizes.fieldHeight,
+              ),
               child: Row(
                 children: [
                   icon,

@@ -223,7 +223,11 @@ class _ShapeTokens extends StatelessWidget {
                   width: AppSpacing.xxxl,
                   child: Text(name, style: t.labelSmall),
                 ),
-                Container(width: value, height: AppSpacing.md, color: s.primary),
+                Container(
+                  width: value,
+                  height: AppSpacing.md,
+                  color: s.primary,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Text('${value.toInt()}', style: t.bodySmall),
               ],
@@ -432,10 +436,26 @@ class _ChipsState extends State<_Chips> {
         onSelected: (v) => setState(() => _category = v),
         options: const [
           AppChipOption(value: 'all', label: 'Tất cả'),
-          AppChipOption(value: 'Cafe', label: 'Cà phê', icon: LucideIcons.coffee),
-          AppChipOption(value: 'Food', label: 'Ẩm thực', icon: LucideIcons.utensils),
-          AppChipOption(value: 'Culture', label: 'Văn hóa', icon: LucideIcons.landmark),
-          AppChipOption(value: 'CheckIn', label: 'Check-in', icon: LucideIcons.camera),
+          AppChipOption(
+            value: 'Cafe',
+            label: 'Cà phê',
+            icon: LucideIcons.coffee,
+          ),
+          AppChipOption(
+            value: 'Food',
+            label: 'Ẩm thực',
+            icon: LucideIcons.utensils,
+          ),
+          AppChipOption(
+            value: 'Culture',
+            label: 'Văn hóa',
+            icon: LucideIcons.landmark,
+          ),
+          AppChipOption(
+            value: 'CheckIn',
+            label: 'Check-in',
+            icon: LucideIcons.camera,
+          ),
         ],
       ),
       const SizedBox(height: AppSpacing.sm),
@@ -448,7 +468,11 @@ class _ChipsState extends State<_Chips> {
           AppChipOption(value: 4, label: '4 giờ'),
           AppChipOption(value: 6, label: '6 giờ'),
           AppChipOption(value: 8, label: '8 giờ'),
-          AppChipOption(value: 0, label: 'Tùy chỉnh', icon: LucideIcons.slidersHorizontal),
+          AppChipOption(
+            value: 0,
+            label: 'Tùy chỉnh',
+            icon: LucideIcons.slidersHorizontal,
+          ),
         ],
       ),
       const SizedBox(height: AppSpacing.md),
@@ -467,8 +491,16 @@ class _ChipsState extends State<_Chips> {
         spacing: AppSpacing.sm,
         runSpacing: AppSpacing.sm,
         children: [
-          StatusChip(label: 'Bản nháp', kind: StatusKind.draft, icon: LucideIcons.pencil),
-          StatusChip(label: 'Đã chốt', kind: StatusKind.finalized, icon: LucideIcons.circleCheck),
+          StatusChip(
+            label: 'Bản nháp',
+            kind: StatusKind.draft,
+            icon: LucideIcons.pencil,
+          ),
+          StatusChip(
+            label: 'Đã chốt',
+            kind: StatusKind.finalized,
+            icon: LucideIcons.circleCheck,
+          ),
           StatusChip(label: 'Ước tính', kind: StatusKind.info),
           StatusChip(label: 'Dữ liệu minh họa'),
           StatusChip(label: 'Đang đóng cửa', kind: StatusKind.danger),
@@ -484,7 +516,9 @@ class _Banners extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      const AppBanner(message: 'Lịch tàu là lịch ước tính, khoảng 8 phút một chuyến.'),
+      const AppBanner(
+        message: 'Lịch tàu là lịch ước tính, khoảng 8 phút một chuyến.',
+      ),
       const SizedBox(height: AppSpacing.sm),
       const AppBanner(
         kind: BannerKind.warning,
@@ -568,9 +602,21 @@ class _Places extends StatelessWidget {
 
   static const _samples = [
     ('Chợ Bến Thành', 'Văn hóa', PlaceCategoryTone.culture, 'Bến Thành', 1),
-    ('Cà phê giữa khoảng xanh', 'Cà phê', PlaceCategoryTone.cafe, 'Nhà hát Thành phố', 2),
+    (
+      'Cà phê giữa khoảng xanh',
+      'Cà phê',
+      PlaceCategoryTone.cafe,
+      'Nhà hát Thành phố',
+      2,
+    ),
     ('Phố ẩm thực Ba Son', 'Ẩm thực', PlaceCategoryTone.food, 'Ba Son', 3),
-    ('Landmark 81 Skyview', 'Check-in', PlaceCategoryTone.checkIn, 'Tân Cảng', 5),
+    (
+      'Landmark 81 Skyview',
+      'Check-in',
+      PlaceCategoryTone.checkIn,
+      'Tân Cảng',
+      5,
+    ),
   ];
 
   @override
@@ -763,7 +809,10 @@ class _SkeletonsState extends State<_Skeletons> {
         ),
       ),
       const SizedBox(height: AppSpacing.md),
-      const SkeletonBlock(height: AppSpacing.lg, width: AppSizes.placeCardWidth),
+      const SkeletonBlock(
+        height: AppSpacing.lg,
+        width: AppSizes.placeCardWidth,
+      ),
       const SizedBox(height: AppSpacing.sm),
       AppButton.ghost(
         label: _loading ? 'Hiện dữ liệu' : 'Hiện skeleton',
@@ -924,8 +973,7 @@ class _Sheets extends StatelessWidget {
         onPressed: () => showAppConfirmSheet(
           context: context,
           title: 'Chốt lịch trình?',
-          message:
-              'Sau khi chốt, bạn không thể đổi điểm dừng. Lịch trình sẽ được lưu vào mục Lịch trình của tôi.',
+          message: 'Sau khi chốt, bạn không thể đổi điểm dừng. Lịch trình sẽ được lưu vào mục Lịch trình của tôi.',
           confirmLabel: 'Xác nhận chốt',
           confirmIcon: LucideIcons.check,
         ),
@@ -936,11 +984,7 @@ class _Sheets extends StatelessWidget {
         child: AppBottomActionBar(
           children: [
             AppButton.secondary(label: 'Đổi điểm', onPressed: () {}),
-            AppButton(
-              label: 'Chốt',
-              icon: LucideIcons.check,
-              onPressed: () {},
-            ),
+            AppButton(label: 'Chốt', icon: LucideIcons.check, onPressed: () {}),
           ],
         ),
       ),

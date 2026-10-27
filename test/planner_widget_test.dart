@@ -147,7 +147,7 @@ void main() {
         await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
       }
-      expect(find.text('Lịch trình cá nhân'), findsOneWidget);
+      expect(find.text('Lịch trình của tôi'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Hôm nay mình đi đâu?'), findsOneWidget);

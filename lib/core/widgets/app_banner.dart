@@ -61,7 +61,11 @@ class AppBanner extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ExcludeSemantics(
-                child: Icon(icon ?? defaultIcon, size: AppSizes.icon, color: fg),
+                child: Icon(
+                  icon ?? defaultIcon,
+                  size: AppSizes.icon,
+                  color: fg,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(

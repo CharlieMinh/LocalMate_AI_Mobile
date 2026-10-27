@@ -173,11 +173,13 @@ abstract final class AppTheme {
           textStyle: WidgetStatePropertyAll(text.labelLarge),
           elevation: const WidgetStatePropertyAll(0),
           backgroundColor: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.disabled) ? disabledBg : scheme.primary,
+            (s) =>
+                s.contains(WidgetState.disabled) ? disabledBg : scheme.primary,
           ),
           foregroundColor: WidgetStateProperty.resolveWith(
-            (s) =>
-                s.contains(WidgetState.disabled) ? disabledFg : scheme.onPrimary,
+            (s) => s.contains(WidgetState.disabled)
+                ? disabledFg
+                : scheme.onPrimary,
           ),
           overlayColor: overlay(scheme.onPrimary),
           side: WidgetStateProperty.resolveWith(
@@ -196,7 +198,8 @@ abstract final class AppTheme {
           textStyle: WidgetStatePropertyAll(text.labelLarge),
           backgroundColor: WidgetStatePropertyAll(scheme.surface),
           foregroundColor: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.disabled) ? disabledFg : scheme.primary,
+            (s) =>
+                s.contains(WidgetState.disabled) ? disabledFg : scheme.primary,
           ),
           overlayColor: overlay(scheme.primary),
           side: WidgetStateProperty.resolveWith(
@@ -216,7 +219,8 @@ abstract final class AppTheme {
           textStyle: WidgetStatePropertyAll(text.labelLarge),
           backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
           foregroundColor: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.disabled) ? disabledFg : scheme.primary,
+            (s) =>
+                s.contains(WidgetState.disabled) ? disabledFg : scheme.primary,
           ),
           overlayColor: overlay(scheme.primary),
           side: WidgetStateProperty.resolveWith(
@@ -231,8 +235,9 @@ abstract final class AppTheme {
           ),
           iconSize: const WidgetStatePropertyAll(AppSizes.iconLg),
           foregroundColor: WidgetStateProperty.resolveWith(
-            (s) =>
-                s.contains(WidgetState.disabled) ? disabledFg : scheme.onSurface,
+            (s) => s.contains(WidgetState.disabled)
+                ? disabledFg
+                : scheme.onSurface,
           ),
           overlayColor: overlay(scheme.onSurface),
           shape: const WidgetStatePropertyAll(CircleBorder()),
@@ -271,10 +276,7 @@ abstract final class AppTheme {
         checkmarkColor: scheme.onPrimary,
         side: WidgetStateBorderSide.resolveWith((s) {
           if (s.contains(WidgetState.focused)) {
-            return BorderSide(
-              color: scheme.primary,
-              width: AppSizes.focusRing,
-            );
+            return BorderSide(color: scheme.primary, width: AppSizes.focusRing);
           }
           if (s.contains(WidgetState.selected)) {
             return BorderSide(color: scheme.primary);

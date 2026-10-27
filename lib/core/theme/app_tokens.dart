@@ -42,7 +42,16 @@ abstract final class AppSizes {
   static const buttonHeightCompact = 40.0;
   static const fieldHeight = 52.0;
   static const appBarHeight = 64.0;
-  static const navBarHeight = 72.0;
+  static const navBarHeight = 80.0;
+
+  /// Used when nav labels wrap onto two lines (large text / narrow screens).
+  static const navBarHeightTall = 104.0;
+  static const logo = 36.0;
+  static const heroHeight = 224.0;
+  static const detailHeaderHeight = 300.0;
+
+  /// Text scale cap for the brand lockup and nav labels (graphic elements).
+  static const maxChromeTextScale = 1.3;
   static const stationBadge = 32.0;
   static const stationBadgeSm = 24.0;
   static const avatar = 48.0;

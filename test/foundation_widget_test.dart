@@ -54,7 +54,7 @@ void main() {
         find.text(switch (destination) {
           Destination.explore => 'Khám phá',
           Destination.metro => 'Ga Metro',
-          Destination.trips => 'Lịch trình cá nhân',
+          Destination.trips => 'Lịch trình của tôi',
           Destination.account => 'Tài khoản',
           _ => destination.heading,
         }).first,
@@ -157,7 +157,7 @@ void main() {
           }
           final bar = tester.getRect(find.byType(NavigationBar));
           for (final destination in Destination.values) {
-            final label = scale == 2
+            final label = scale == 2 || width < 360
                 ? destination.label.replaceAll(' ', '\n')
                 : destination.label;
             final bounds = tester.getRect(

@@ -37,7 +37,9 @@ class AppChipGroup<T> extends StatelessWidget {
     final chips = [
       for (final option in options)
         AppFilterChip(
-          key: keyPrefix == null ? null : ValueKey('$keyPrefix-${option.value}'),
+          key: keyPrefix == null
+              ? null
+              : ValueKey('$keyPrefix-${option.value}'),
           label: option.label,
           icon: option.icon,
           selected: option.value == selected,
@@ -100,7 +102,9 @@ class AppFilterChip extends StatelessWidget {
                   AppHaptics.selection();
                   onSelected!();
                 },
-          avatar: icon == null ? null : Icon(icon, size: AppSizes.iconSm, color: fg),
+          avatar: icon == null
+              ? null
+              : Icon(icon, size: AppSizes.iconSm, color: fg),
           label: Text(label),
           labelStyle: context.textStyles.labelMedium?.copyWith(color: fg),
           materialTapTargetSize: MaterialTapTargetSize.padded,

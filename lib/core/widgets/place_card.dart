@@ -122,11 +122,7 @@ class PlaceImage extends StatelessWidget {
     image = ExcludeSemantics(
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: SizedBox(
-          height: height,
-          width: double.infinity,
-          child: image,
-        ),
+        child: SizedBox(height: height, width: double.infinity, child: image),
       ),
     );
     return heroTag == null ? image : Hero(tag: heroTag!, child: image);

@@ -12,8 +12,8 @@ class TimelineStop extends StatelessWidget {
   const TimelineStop({
     super.key,
     required this.index,
-    required this.time,
     required this.title,
+    this.time,
     required this.tone,
     this.subtitle,
     this.imageUrl,
@@ -27,7 +27,9 @@ class TimelineStop extends StatelessWidget {
   });
 
   final int index;
-  final String time;
+
+  /// Scheduled time; null for unscheduled lists (curated itineraries).
+  final String? time;
   final String title;
   final PlaceCategoryTone tone;
   final String? subtitle;
@@ -68,7 +70,10 @@ class TimelineStop extends StatelessWidget {
                   width: _nodeSize,
                   height: _nodeSize,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: node, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: node,
+                    shape: BoxShape.circle,
+                  ),
                   child: visited
                       ? Icon(
                           LucideIcons.check,
@@ -102,17 +107,19 @@ class TimelineStop extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text.rich(
-                    TextSpan(
-                      text: time,
-                      children: [
-                        if (timeNote != null)
-                          TextSpan(text: ' $timeNote', style: text.bodySmall),
-                      ],
+                  if (time != null) ...[
+                    Text.rich(
+                      TextSpan(
+                        text: time,
+                        children: [
+                          if (timeNote != null)
+                            TextSpan(text: ' $timeNote', style: text.bodySmall),
+                        ],
+                      ),
+                      style: text.labelLarge?.copyWith(color: scheme.primary),
                     ),
-                    style: text.labelLarge?.copyWith(color: scheme.primary),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
                   _StopCard(
                     title: title,
                     subtitle: subtitle,
@@ -267,7 +274,10 @@ class TravelLeg extends StatelessWidget {
             width: TimelineStop._railColumn,
             child: Center(
               child: isMetro
-                  ? Container(width: AppSizes.railWidth * 2, color: app.metroLine)
+                  ? Container(
+                      width: AppSizes.railWidth * 2,
+                      color: app.metroLine,
+                    )
                   : CustomPaint(
                       size: const Size(AppSizes.railWidth, double.infinity),
                       painter: _DashedRail(app.metroLine),
@@ -296,7 +306,9 @@ class TravelLeg extends StatelessWidget {
                       child: Icon(
                         icon,
                         size: AppSizes.iconSm,
-                        color: isMetro ? app.metroLine : scheme.onSurfaceVariant,
+                        color: isMetro
+                            ? app.metroLine
+                            : scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),

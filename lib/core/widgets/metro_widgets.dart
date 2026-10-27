@@ -179,7 +179,9 @@ class MetroLineDiagram extends StatelessWidget {
                                         : _inRange(stations[i].order) &&
                                               _inRange(stations[i - 1].order)
                                         ? line
-                                        : line.withValues(alpha: AppOpacity.railInactive),
+                                        : line.withValues(
+                                            alpha: AppOpacity.railInactive,
+                                          ),
                                   ),
                                 ),
                                 Expanded(
@@ -190,7 +192,9 @@ class MetroLineDiagram extends StatelessWidget {
                                         : _inRange(stations[i].order) &&
                                               _inRange(stations[i + 1].order)
                                         ? line
-                                        : line.withValues(alpha: AppOpacity.railInactive),
+                                        : line.withValues(
+                                            alpha: AppOpacity.railInactive,
+                                          ),
                                   ),
                                 ),
                               ],

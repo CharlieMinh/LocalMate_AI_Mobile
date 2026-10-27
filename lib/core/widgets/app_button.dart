@@ -79,22 +79,25 @@ class AppButton extends StatelessWidget {
             if (haptic) AppHaptics.light();
             onPressed!();
           };
-    final height = compact ? AppSizes.buttonHeightCompact : AppSizes.buttonHeight;
+    final height = compact
+        ? AppSizes.buttonHeightCompact
+        : AppSizes.buttonHeight;
     final padding = EdgeInsets.symmetric(
       horizontal: compact ? AppSpacing.lg : AppSpacing.xl,
     );
 
-    ButtonStyle sized(ButtonStyle? style) => (style ?? const ButtonStyle()).merge(
-      ButtonStyle(
-        minimumSize: WidgetStatePropertyAll(
-          Size(AppSizes.minTouchTarget, height),
-        ),
-        padding: WidgetStatePropertyAll(padding),
-        textStyle: compact
-            ? WidgetStatePropertyAll(context.textStyles.labelMedium)
-            : null,
-      ),
-    );
+    ButtonStyle sized(ButtonStyle? style) =>
+        (style ?? const ButtonStyle()).merge(
+          ButtonStyle(
+            minimumSize: WidgetStatePropertyAll(
+              Size(AppSizes.minTouchTarget, height),
+            ),
+            padding: WidgetStatePropertyAll(padding),
+            textStyle: compact
+                ? WidgetStatePropertyAll(context.textStyles.labelMedium)
+                : null,
+          ),
+        );
 
     final content = _ButtonContent(
       label: label,
@@ -121,7 +124,9 @@ class AppButton extends StatelessWidget {
           ButtonStyle(
             backgroundColor: WidgetStateProperty.resolveWith(
               (s) => s.contains(WidgetState.disabled)
-                  ? scheme.onSurface.withValues(alpha: AppOpacity.disabledContainer)
+                  ? scheme.onSurface.withValues(
+                      alpha: AppOpacity.disabledContainer,
+                    )
                   : scheme.primaryContainer,
             ),
             foregroundColor: WidgetStateProperty.resolveWith(
@@ -144,7 +149,9 @@ class AppButton extends StatelessWidget {
           ButtonStyle(
             backgroundColor: WidgetStateProperty.resolveWith(
               (s) => s.contains(WidgetState.disabled)
-                  ? scheme.onSurface.withValues(alpha: AppOpacity.disabledContainer)
+                  ? scheme.onSurface.withValues(
+                      alpha: AppOpacity.disabledContainer,
+                    )
                   : scheme.error,
             ),
             foregroundColor: WidgetStatePropertyAll(scheme.onError),

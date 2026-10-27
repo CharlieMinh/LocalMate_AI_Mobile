@@ -11,6 +11,7 @@ export 'app_chips.dart';
 export 'app_search_bar.dart';
 export 'app_skeleton.dart';
 export 'app_text_field.dart';
+export 'brand_lockup.dart';
 export 'illustrations.dart';
 export 'metro_widgets.dart';
 export 'place_card.dart';

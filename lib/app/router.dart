@@ -5,10 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../dev/component_gallery_screen.dart';
 import '../features/foundation/domain/destination.dart';
+import 'app_shell.dart';
 import '../features/planner/presentation/planner_page.dart';
 import '../shared/widgets/content_states.dart';
-import '../shared/widgets/brand_header.dart';
-import '../shared/theme/layout_tokens.dart';
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/auth_pages.dart';
@@ -116,83 +115,4 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _AuthRouterRefresh extends ChangeNotifier {
   void changed() => notifyListeners();
-}
-
-class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.path, required this.child});
-  final String path;
-  final Widget child;
-  @override
-  Widget build(BuildContext context) {
-    final textScaler = MediaQuery.textScalerOf(context);
-    final largeText = LayoutTokens.usesLargeText(textScaler);
-    final index = Destination.values.indexWhere(
-      (destination) => destination.path == path,
-    );
-    return PopScope(
-      canPop: index == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && index != 0) context.go('/home');
-      },
-      child: Scaffold(
-        appBar: index <= 0
-            ? BrandHeader(onAccount: () => context.go('/account'))
-            : AppBar(
-                title: Text(switch (Destination.values[index]) {
-                  Destination.metro => 'Ga Metro',
-                  Destination.trips => 'Lịch trình cá nhân',
-                  _ => Destination.values[index].label,
-                }),
-                actions: [
-                  if (path == '/trips' || path == '/explore')
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: IconButton.filledTonal(
-                        tooltip: 'Tạo lịch trình mẫu',
-                        onPressed: () => context.push('/planner'),
-                        icon: Icon(
-                          path == '/trips'
-                              ? Icons.add
-                              : Icons.auto_awesome_outlined,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-        body: SafeArea(top: false, bottom: false, child: child),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: NavigationBar(
-            height: LayoutTokens.navigationHeightFor(textScaler),
-            labelTextStyle: largeText
-                ? WidgetStateProperty.resolveWith(
-                    (states) =>
-                        (Theme.of(context).navigationBarTheme.labelTextStyle
-                                    ?.resolve(states) ??
-                                const TextStyle())
-                            .copyWith(
-                              fontSize: 11,
-                              height: 1.2,
-                              letterSpacing: 0,
-                            ),
-                  )
-                : null,
-            selectedIndex: index < 0 ? 0 : index,
-            onDestinationSelected: (next) =>
-                context.go(Destination.values[next].path),
-            destinations: [
-              for (final destination in Destination.values)
-                NavigationDestination(
-                  icon: Icon(destination.icon),
-                  label: largeText
-                      ? destination.label.replaceAll(' ', '\n')
-                      : destination.label,
-                  tooltip: destination.label,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
