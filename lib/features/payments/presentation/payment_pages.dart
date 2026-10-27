@@ -51,19 +51,19 @@ class _CheckoutSheetState extends ConsumerState<_CheckoutSheet> {
   String? _error;
 
   Future<void> _pay() async {
+    // Everything used after the awaits is read now: the sheet may be
+    // dismissed while the order is created, and `ref` dies with it.
     final router = GoRouter.of(context);
     final navigator = Navigator.of(context);
+    final payments = ref.read(paymentsRepositoryProvider);
+    final openUrl = ref.read(externalUrlOpenerProvider);
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final intent = await ref
-          .read(paymentsRepositoryProvider)
-          .checkout(widget.plan.code);
-      final opened = await ref.read(externalUrlOpenerProvider)(
-        intent.checkoutUrl,
-      );
+      final intent = await payments.checkout(widget.plan.code);
+      final opened = await openUrl(intent.checkoutUrl);
       // The order exists even if the sheet was dismissed meanwhile, so the
       // status page still opens; only a still-open sheet is popped.
       if (mounted) navigator.pop();

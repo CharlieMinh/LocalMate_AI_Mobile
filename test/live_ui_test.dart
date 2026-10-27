@@ -644,4 +644,53 @@ void main() {
     expect(container.read(plannerFormProvider).durationHours, 4);
     await finish(tester, container);
   });
+
+  testWidgets('notifications: older pages load on demand and stay', (
+    tester,
+  ) async {
+    backend
+      ..twoNotificationPages = true
+      ..failNextNotificationPage = true;
+    final container = await boot(tester, route: '/notifications', signIn: true);
+    expect(find.text('Lịch trình đã được chốt'), findsOneWidget);
+    final more = find.byKey(const ValueKey('notifications-more'));
+    await tap(tester, more);
+    // First attempt fails: the loaded item stays, a retry is offered.
+    expect(find.text('Lịch trình đã được chốt'), findsOneWidget);
+    expect(find.text('Thử tải lại'), findsOneWidget);
+    await tap(tester, more);
+    expect(find.text('Chào mừng đến LocalMate'), findsOneWidget);
+    expect(more, findsNothing); // last page reached
+    expect(backend.calls.where((c) => c == 'notifications:2'), hasLength(2));
+    // Marking read keeps page 2 instead of refetching page 1 only.
+    await tap(tester, find.byTooltip('Đánh dấu đã đọc tất cả'));
+    expect(backend.calls, contains('read-all'));
+    expect(find.text('Chào mừng đến LocalMate'), findsOneWidget);
+    expect(find.byTooltip('Đánh dấu đã đọc tất cả'), findsNothing);
+    await finish(tester, container);
+  });
+
+  testWidgets('PayOS: closing the sheet mid-checkout still opens payment', (
+    tester,
+  ) async {
+    backend
+      ..payosConfigured = true
+      ..orderStatuses = ['Pending']
+      ..checkoutGate = Completer<void>();
+    final container = await boot(tester, route: '/account', signIn: true);
+    await openCheckout(tester);
+    await tester.tap(find.byKey(const ValueKey('checkout-pay')));
+    await tester.pump();
+    await tester.binding.handlePopRoute(); // system back closes the sheet
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const ValueKey('checkout-pay')), findsNothing);
+    backend.checkoutGate!.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(backend.opened, [Uri.parse(LiveBackend.checkoutUrl)]);
+    expect(find.text('Đang chờ thanh toán'), findsOneWidget);
+    await finish(tester, container);
+  });
 }

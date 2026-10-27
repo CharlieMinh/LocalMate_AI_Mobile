@@ -73,6 +73,15 @@ class LiveBackend {
   bool noTrips = false;
   bool notificationRead = false;
 
+  /// Two notification pages (page 2 is an older, contract-shaped item).
+  bool twoNotificationPages = false;
+
+  /// The next page-2 request fails once with 503.
+  bool failNextNotificationPage = false;
+
+  /// When set, checkout waits for it (to dismiss the sheet meanwhile).
+  Completer<void>? checkoutGate;
+
   /// The dev backend has no PayOS config (502). When true, checkout answers
   /// with the contract's PaymentIntentResponse shape instead.
   bool payosConfigured = false;
@@ -123,12 +132,45 @@ class LiveBackend {
       ? ok
       : reply(liveJson('verify-bad'), status: 400);
 
-  String _notifications() {
+  ResponseBody _notifications(RequestOptions r) {
+    final number = r.queryParameters['page'] ?? 1;
+    if (number == 2) {
+      calls.add('notifications:2');
+      if (failNextNotificationPage) {
+        failNextNotificationPage = false;
+        return reply(
+          jsonEncode({'status': 503, 'title': 'Service Unavailable'}),
+          status: 503,
+        );
+      }
+      return reply(
+        jsonEncode({
+          'items': [
+            {
+              'id': '7a1b2c3d-0000-4000-8000-000000000002',
+              'type': 'welcome',
+              'title': 'Chào mừng đến LocalMate',
+              'body': 'Bắt đầu bằng một lịch trình quanh ga gần bạn.',
+              'targetType': 'CreateTrip',
+              'targetId': null,
+              'isRead': true,
+              'readAt': '2026-10-20T09:00:00Z',
+              'createdAt': '2026-10-20T08:00:00Z',
+            },
+          ],
+          'page': 2,
+          'pageSize': 20,
+          'totalCount': 21,
+          'totalPages': 2,
+        }),
+      );
+    }
     final page = jsonDecode(liveJson('notifications')) as Map<String, Object?>;
     for (final n in page['items']! as List) {
       (n as Map)['isRead'] = notificationRead;
     }
-    return jsonEncode(page);
+    if (twoNotificationPages) page['totalPages'] = 2;
+    return reply(jsonEncode(page));
   }
 
   final calls = <String>[];
@@ -295,7 +337,7 @@ class LiveBackend {
       }
       return _write('patch-me', r, reply(jsonEncode(me)));
     },
-    'GET /notifications': (_) => reply(_notifications()),
+    'GET /notifications': _notifications,
     'GET /notifications/unread-count': (_) =>
         reply(jsonEncode({'count': notificationRead ? 0 : 1})),
     'POST /notifications/01f7969d-83fc-4c39-aa7b-3ab90bd90b63/read': (r) {
@@ -308,22 +350,25 @@ class LiveBackend {
     },
     'GET /subscription/checkout-quote': (_) =>
         reply(liveJson('checkout-quote')),
-    'POST /subscription/checkout': (r) => _write(
-      'checkout',
-      r,
-      pendingOrder
-          ? reply(
-              jsonEncode({
-                'status': 409,
-                'code': 'pending_order_exists',
-                ..._intent,
-              }),
-              status: 409,
-            )
-          : payosConfigured
-          ? reply(jsonEncode(_intent), status: 201)
-          : reply(liveJson('checkout'), status: 502),
-    ),
+    'POST /subscription/checkout': (r) async {
+      await checkoutGate?.future;
+      return _write(
+        'checkout',
+        r,
+        pendingOrder
+            ? reply(
+                jsonEncode({
+                  'status': 409,
+                  'code': 'pending_order_exists',
+                  ..._intent,
+                }),
+                status: 409,
+              )
+            : payosConfigured
+            ? reply(jsonEncode(_intent), status: 201)
+            : reply(liveJson('checkout'), status: 502),
+      );
+    },
     'GET /subscription/orders/$orderId': (_) {
       final status =
           orderStatuses[_polls < orderStatuses.length

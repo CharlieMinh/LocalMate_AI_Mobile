@@ -774,14 +774,14 @@ class NotificationsPage extends ConsumerWidget {
     AppNotification n,
   ) async {
     if (!n.isRead) {
+      final feed = ref.read(notificationFeedProvider.notifier);
       try {
         await ref.read(accountRepositoryProvider).markRead(n.id);
+        feed.markedRead(n.id);
       } on ApiFailure catch (_) {
         // Reading the target still works; the badge refreshes later.
       }
-      ref
-        ..invalidate(notificationsProvider)
-        ..invalidate(unreadCountProvider);
+      if (context.mounted) ref.invalidate(unreadCountProvider);
     }
     if (!context.mounted) return;
     switch (n.targetType) {
@@ -797,11 +797,11 @@ class NotificationsPage extends ConsumerWidget {
 
   Future<void> _readAll(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    final feed = ref.read(notificationFeedProvider.notifier);
     try {
       await ref.read(accountRepositoryProvider).markAllRead();
-      ref
-        ..invalidate(notificationsProvider)
-        ..invalidate(unreadCountProvider);
+      feed.markedAllRead();
+      if (context.mounted) ref.invalidate(unreadCountProvider);
     } on ApiFailure catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
     }
@@ -809,7 +809,7 @@ class NotificationsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final page = ref.watch(notificationsProvider);
+    final page = ref.watch(notificationFeedProvider);
     final hasUnread = page.asData?.value.items.any((n) => !n.isRead) ?? false;
     final scheme = context.colors;
     final text = context.textStyles;
@@ -831,7 +831,7 @@ class NotificationsPage extends ConsumerWidget {
         child: RefreshIndicator(
           onRefresh: () {
             ref.invalidate(unreadCountProvider);
-            return ref.refresh(notificationsProvider.future);
+            return ref.refresh(notificationFeedProvider.future);
           },
           child: page.when(
             skipLoadingOnRefresh: false,
@@ -850,7 +850,7 @@ class NotificationsPage extends ConsumerWidget {
                   message: e is ApiFailure
                       ? apiErrorMessage(e)
                       : 'Vui lòng thử lại.',
-                  onRetry: () => ref.invalidate(notificationsProvider),
+                  onRetry: () => ref.invalidate(notificationFeedProvider),
                 ),
               ],
             ),
@@ -868,10 +868,15 @@ class NotificationsPage extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                       vertical: AppSpacing.sm,
                     ),
-                    itemCount: data.items.length,
+                    itemCount:
+                        data.items.length +
+                        (data.hasMore || data.moreError != null ? 1 : 0),
                     separatorBuilder: (_, _) =>
                         const Divider(indent: AppSpacing.gutter),
                     itemBuilder: (context, i) {
+                      if (i == data.items.length) {
+                        return _LoadMoreNotifications(data);
+                      }
                       final n = data.items[i];
                       return Pressable(
                         key: ValueKey('notification-${n.id}'),
@@ -947,6 +952,47 @@ class NotificationsPage extends ConsumerWidget {
                   ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Footer of the notification list: older pages on demand.
+class _LoadMoreNotifications extends ConsumerWidget {
+  const _LoadMoreNotifications(this.feed);
+  final NotificationFeed feed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final error = feed.moreError;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        AppSpacing.md,
+        AppSpacing.gutter,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (error != null) ...[
+            AppBanner(kind: BannerKind.error, message: apiErrorMessage(error)),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          AppButton.secondary(
+            buttonKey: const ValueKey('notifications-more'),
+            label: error != null
+                ? 'Thử tải lại'
+                : feed.loadingMore
+                ? 'Đang tải…'
+                : 'Xem thông báo cũ hơn',
+            icon: LucideIcons.chevronsDown,
+            loading: feed.loadingMore,
+            onPressed: feed.loadingMore
+                ? null
+                : ref.read(notificationFeedProvider.notifier).loadMore,
+          ),
+        ],
       ),
     );
   }
