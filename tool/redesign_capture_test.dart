@@ -88,8 +88,8 @@ void main() {
       );
       final router = container.read(routerProvider);
 
-      Future<void> shot(String name) async {
-        await tester.pumpAndSettle();
+      Future<void> shot(String name, {bool settle = true}) async {
+        if (settle) await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$tag $name');
         if (!c.save) return;
         await tester.runAsync(() async {
@@ -159,6 +159,59 @@ void main() {
 
       router.go('/curated/$_curatedId');
       await shot('curated');
+
+      Future<void> tapIt(Finder finder) async {
+        await tester.ensureVisible(finder.first);
+        await tester.pumpAndSettle();
+        await tester.tap(finder.first);
+        await tester.pumpAndSettle();
+      }
+
+      final next = find.widgetWithText(FilledButton, 'Tiếp tục');
+      router.go('/trips');
+      await shot('trips');
+      router.push('/planner');
+      await shot('planner-1');
+      await tapIt(next);
+      await shot('planner-2');
+      await scrollDown();
+      await shot('planner-2-lower');
+      await tapIt(find.byKey(const ValueKey('planner-duration-custom')));
+      await shot('planner-duration');
+      await tapIt(find.text('Xong'));
+      await tapIt(next);
+      await tapIt(find.text('Văn hóa'));
+      await shot('planner-3');
+      await tapIt(next);
+      await shot('planner-4');
+      await scrollDown();
+      await shot('planner-4-lower');
+      await tester.tap(find.widgetWithText(FilledButton, 'Xem lịch trình mẫu'));
+      await tester.pump(const Duration(milliseconds: 120));
+      await shot('loading', settle: false);
+      await tester.pumpAndSettle();
+      await shot('preview');
+      await scrollDown();
+      await shot('preview-lower');
+      await tapIt(find.text('Chốt lịch trình'));
+      await shot('finalize-sheet');
+      await tapIt(find.text('Để sau'));
+      router.go('/dev/finalized');
+      await shot('finalized');
+
+      router.go('/metro');
+      await shot('metro');
+      await tapIt(find.text('Xem hành trình mẫu'));
+      await shot('metro-journey');
+      await tapIt(find.byKey(const ValueKey('metro-origin')));
+      await shot('metro-picker');
+      await tapIt(find.byTooltip('Đóng chọn ga'));
+      await tapIt(find.text('Các ga'));
+      await shot('metro-stations');
+      router.go('/stations/1');
+      await shot('stations');
+      await scrollDown();
+      await shot('stations-lower');
 
       await tester.pumpWidget(const SizedBox());
     });

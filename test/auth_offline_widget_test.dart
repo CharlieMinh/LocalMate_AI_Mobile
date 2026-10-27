@@ -124,7 +124,8 @@ void main() {
       container.read(routerProvider).go('/metro');
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
-      expect(find.text('Ga Metro'), findsOneWidget);
+      // Large title renders expanded + collapsed copies.
+      expect(find.text('Ga Metro'), findsWidgets);
       expect(container.read(authProvider).authenticated, isFalse);
       await closeApp(tester, container);
     },

@@ -9,8 +9,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../shared/formatters.dart';
-import '../../../shared/theme/app_theme.dart';
-import '../../../shared/widgets/feedback_banner.dart';
 import '../domain/discovery_models.dart';
 
 /// Small honest tag shown on screens backed by fixture data (mock builds).
@@ -496,137 +494,176 @@ class MapsPreviewButton extends StatelessWidget {
 class ScheduleView extends StatelessWidget {
   const ScheduleView(this.schedule, {super.key});
   final MetroSchedule schedule;
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      FeedbackBanner(
-        kind: schedule.withinPeriod
-            ? FeedbackBannerKind.info
-            : FeedbackBannerKind.warning,
-        title: schedule.estimated
-            ? 'Lịch tàu ước tính · Không phải trực tiếp'
-            : 'Lịch mẫu · Không phải trực tiếp',
-        message: !schedule.withinPeriod
-            ? 'Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'
-            : schedule.precision == 'Headway'
-            ? 'Giãn cách là khoảng thời gian giữa các chuyến, không phải giờ tàu xuất bến chính xác.'
-            : schedule.showExact
-            ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
-            : 'Chưa đủ dữ liệu để xác định thời gian tàu chạy.',
-      ),
-      const SizedBox(height: 12),
-      Text(
-        'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)',
-        style: BrandTypography.metadata,
-      ),
-      for (final direction in schedule.directions)
-        Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Brand.surface,
-              border: Border.all(color: Brand.line),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.train_outlined,
-                        size: 20,
-                        color: Brand.navy,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Hướng ${direction.toward}',
-                          style: BrandTypography.choice.copyWith(
-                            fontSize: 14,
-                            color: Brand.navy,
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    final app = context.appColors;
+    final text = context.textStyles;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBanner(
+          kind: schedule.withinPeriod ? BannerKind.info : BannerKind.warning,
+          title: schedule.estimated
+              ? 'Lịch tàu ước tính · Không phải trực tiếp'
+              : 'Lịch mẫu · Không phải trực tiếp',
+          message: !schedule.withinPeriod
+              ? 'Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'
+              : schedule.precision == 'Headway'
+              ? 'Giãn cách là khoảng thời gian giữa các chuyến, không phải giờ tàu xuất bến chính xác.'
+              : schedule.showExact
+              ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
+              : 'Chưa đủ dữ liệu để xác định thời gian tàu chạy.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)',
+          style: text.bodySmall,
+        ),
+        for (final direction in schedule.directions)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                border: Border.all(color: scheme.outline),
+                borderRadius: AppRadius.card,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.xs),
+                          decoration: BoxDecoration(
+                            color: app.metroLineContainer,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(AppRadius.xs),
+                            ),
+                          ),
+                          child: Icon(
+                            LucideIcons.trainFront,
+                            size: AppSizes.iconSm,
+                            color: app.metroLine,
                           ),
                         ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Hướng ${direction.toward}',
+                            style: text.titleSmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: AppSpacing.xl),
+                    if (schedule.showExact)
+                      direction.departures.isEmpty
+                          ? Text('Chưa có chuyến.', style: text.bodyMedium)
+                          : Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: [
+                                for (final t in direction.departures)
+                                  StatusChip(
+                                    label: t.substring(0, 5),
+                                    kind: StatusKind.info,
+                                  ),
+                              ],
+                            )
+                    else if (schedule.precision == 'Headway' &&
+                        schedule.withinPeriod) ...[
+                      if (direction.headways.isEmpty)
+                        Text(
+                          'Chưa có thông tin giãn cách trong bộ mẫu này.',
+                          style: text.bodyMedium,
+                        ),
+                      for (final h in direction.headways)
+                        HeadwayRow(from: h.from, to: h.to, minutes: h.minutes),
+                    ] else
+                      Text(
+                        'Chưa đủ dữ liệu lịch tàu để hiển thị.',
+                        style: text.bodyMedium,
                       ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            shape: const Border(),
+            collapsedShape: const Border(),
+            title: Text('Thông tin bộ dữ liệu', style: text.labelLarge),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Độ chính xác: ${schedule.precision}',
+                        style: text.bodySmall,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Hiệu lực: ${schedule.effectiveFrom} – ${schedule.effectiveTo ?? 'chưa có ngày kết thúc'}',
+                        style: text.bodySmall,
+                      ),
+                      if (schedule.notice != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(schedule.notice!, style: text.bodySmall),
+                      ],
                     ],
                   ),
-                  const Divider(height: 24, color: Brand.line),
-                  if (schedule.showExact)
-                    Text(
-                      direction.departures.isEmpty
-                          ? 'Chưa có chuyến.'
-                          : direction.departures
-                                .map((t) => t.substring(0, 5))
-                                .join(' · '),
-                      style: BrandTypography.body,
-                    )
-                  else if (schedule.precision == 'Headway' &&
-                      schedule.withinPeriod) ...[
-                    if (direction.headways.isEmpty)
-                      const Text(
-                        'Chưa có thông tin giãn cách trong bộ mẫu này.',
-                        style: BrandTypography.body,
-                      ),
-                    for (final h in direction.headways)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(
-                          '${h.from.substring(0, 5)}–${h.to.substring(0, 5)}: khoảng ${h.minutes} phút/chuyến',
-                          style: BrandTypography.body.copyWith(fontSize: 14),
-                        ),
-                      ),
-                  ] else
-                    const Text(
-                      'Chưa đủ dữ liệu lịch tàu để hiển thị.',
-                      style: BrandTypography.body,
-                    ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
-      ExpansionTile(
-        backgroundColor: Brand.canvas,
-        collapsedBackgroundColor: Brand.canvas,
-        textColor: Brand.ink,
-        collapsedTextColor: Brand.ink,
-        iconColor: Brand.navy,
-        collapsedIconColor: Brand.navy,
-        tilePadding: EdgeInsets.zero,
-        title: const Text(
-          'Thông tin bộ dữ liệu',
-          style: BrandTypography.choice,
+      ],
+    );
+  }
+}
+
+/// "06:00–08:00: khoảng 8 phút/chuyến" with a clock icon.
+class HeadwayRow extends StatelessWidget {
+  const HeadwayRow({
+    super.key,
+    required this.from,
+    required this.to,
+    required this.minutes,
+  });
+  final String from;
+  final String to;
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+    child: Row(
+      children: [
+        Icon(
+          LucideIcons.clock,
+          size: AppSizes.iconSm,
+          color: context.colors.onSurfaceVariant,
         ),
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Độ chính xác: ${schedule.precision}',
-                    style: BrandTypography.metadata,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Hiệu lực: ${schedule.effectiveFrom} – ${schedule.effectiveTo ?? 'chưa có ngày kết thúc'}',
-                    style: BrandTypography.metadata,
-                  ),
-                  if (schedule.notice != null) ...[
-                    const SizedBox(height: 8),
-                    Text(schedule.notice!, style: BrandTypography.metadata),
-                  ],
-                ],
-              ),
-            ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            '${from.substring(0, 5)}–${to.substring(0, 5)}: khoảng $minutes phút/chuyến',
+            style: context.textStyles.bodyMedium,
           ),
-        ],
-      ),
-    ],
+        ),
+      ],
+    ),
   );
 }

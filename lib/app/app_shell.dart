@@ -15,7 +15,11 @@ class AppShell extends ConsumerWidget {
   final String path;
   final Widget child;
 
-  static const _ownHeader = {Destination.home, Destination.explore};
+  static const _ownHeader = {
+    Destination.home,
+    Destination.explore,
+    Destination.metro,
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

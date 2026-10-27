@@ -197,11 +197,14 @@ void main() {
     (tester) async {
       await boot(tester, route: '/metro');
       await tapVisible(tester, find.text('Xem hành trình mẫu'));
-      expect(find.text('Bến Thành → Nhà hát Thành phố'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('metro-journey-result')),
+        findsOneWidget,
+      );
       expect(find.textContaining('khoảng 8 phút/chuyến'), findsOneWidget);
       expect(find.text('08:00 → 08:02 (lịch mẫu)'), findsNothing);
       await tapVisible(tester, find.text('Các ga'));
-      await tapVisible(tester, find.text('Ba Son'));
+      await tapVisible(tester, find.widgetWithText(ListTile, 'Ba Son'));
       expect(find.text('Ga Ba Son'), findsOneWidget);
       expect(find.text('Hướng Bến Thành'), findsOneWidget);
       expect(find.text('Hướng Bến xe Suối Tiên'), findsOneWidget);

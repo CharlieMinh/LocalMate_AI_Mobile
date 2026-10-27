@@ -133,6 +133,11 @@ Lý do, xét theo người dùng là khách du lịch đi Metro số 1 TP.HCM:
 | 18 | Chi tiết địa điểm có thanh tiêu đề "Chi tiết địa điểm" | Header ảnh co giãn 300px, chuyển thành tên địa điểm khi cuộn; nút back nổi trên ảnh | Pattern chi tiết hiện đại; hero animation từ card |
 | 19 | Khám phá có 2 nút "Tìm kiếm" / "Xóa tìm kiếm" dưới ô nhập | Thanh tìm kiếm nổi: tìm bằng phím Tìm trên bàn phím, nút xóa (X) trong ô | Pattern mobile chuẩn; bớt nút thừa |
 | 20 | Nhãn bottom nav phóng theo cỡ chữ hệ thống | Nhãn nav giới hạn phóng 1.3×, tự xuống 2 dòng khi chữ lớn hoặc màn < 360px | Nav là "chrome"; tránh tràn; nội dung trang vẫn phóng đầy đủ |
+| 22 | Planner: ngày/giờ là dropdown/ô nhập kiểu web | Chip "Hôm nay / Ngày mai / Ngày khác" và "Sáng 08:00 / Chiều 13:00 / Tối 18:00 / Giờ khác" kèm date/time picker locale vi; không còn gõ tay `yyyy-MM-dd` | Không thể nhập sai định dạng; khớp `timeSlots` của backend. Validate trong domain giữ nguyên |
+| 23 | Planner: ga chọn bằng dropdown | Ô chọn ga mở bottom sheet tìm không dấu, kèm sơ đồ 14 ga chạm để chọn ga xuất phát | Pattern mobile; tái sử dụng picker của Metro |
+| 24 | Sheet "Chốt lịch trình?" dẫn tới màn Đã chốt | Ở bản mock, sheet giải thích "Chưa khả dụng ở bản offline", nút xác nhận bị vô hiệu. Màn Đã chốt đã có giao diện (`FinalizedTripView`), xem qua route debug `/dev/finalized`, nối API ở Giai đoạn 4 | Không tạo trạng thái thành công giả (quy tắc handoff) |
+| 25 | Lịch trình nháp có "Xem địa điểm / Đổi điểm" từng điểm dừng | Chưa hiện ở bản mock vì điểm dừng mẫu không có `placeId`; component đã hỗ trợ `actions` | Không hiển thị hành động không có dữ liệu thật |
+| 26 | Nút "Tạo lịch trình từ ga này" (chi tiết ga) điền sẵn ga | Nút chung "Tạo lịch trình mẫu" (chưa điền sẵn ga) | Điền sẵn cần thay đổi luồng điều hướng planner; để Giai đoạn 4 |
 | 21 | Không có dark mode | Theme sáng/tối đầy đủ; **mặc định vẫn là sáng** cho tới khi mọi màn đã chuyển sang design system mới, rồi mới đổi sang theo hệ thống | Các màn chưa redesign còn hardcode màu sáng, bật tối sớm sẽ vỡ giao diện |
 
 ---
