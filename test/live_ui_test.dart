@@ -789,4 +789,41 @@ void main() {
     expect(find.byKey(const ValueKey('plan-buy-TripPass')), findsOneWidget);
     await finish(tester, container);
   });
+
+  testWidgets('feedback and review sheets recover when quick tags fail', (
+    tester,
+  ) async {
+    backend.finalized = true;
+    final container = await boot(
+      tester,
+      route: '/trips/${backend.tripId}',
+      signIn: true,
+    );
+    backend.masterDataDown = true;
+    await tap(tester, find.text('Đánh giá chuyến đi'));
+    expect(
+      find.text('Chưa tải được danh sách nhận xét nhanh.'),
+      findsOneWidget,
+    );
+    final submit = find.byKey(const ValueKey('feedback-submit'));
+    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+    backend.masterDataDown = false;
+    await tap(tester, find.byKey(const ValueKey('quick-tags-retry')));
+    await tap(tester, find.byKey(const ValueKey('feedback-tag-Suitable')));
+    expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+    await tap(tester, find.byTooltip('Đóng'));
+
+    backend.masterDataDown = true;
+    container.invalidate(quickTagsProvider);
+    await tap(tester, find.widgetWithText(TextButton, 'Đánh giá'));
+    expect(
+      find.text('Chưa tải được danh sách nhận xét nhanh.'),
+      findsOneWidget,
+    );
+    backend.masterDataDown = false;
+    await tap(tester, find.byKey(const ValueKey('quick-tags-retry')));
+    expect(find.byKey(const ValueKey('review-tag-NearMetro')), findsOneWidget);
+    await tap(tester, find.byTooltip('Đóng'));
+    await finish(tester, container);
+  });
 }

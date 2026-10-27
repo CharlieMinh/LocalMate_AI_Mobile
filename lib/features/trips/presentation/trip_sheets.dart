@@ -206,7 +206,13 @@ class _StopReviewSheetState extends ConsumerState<_StopReviewSheet> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (all.isNotEmpty) ...[
+              // Stars alone can be sent; the quick tags just come back on retry.
+              if (tags.hasError && !tags.isLoading) ...[
+                _QuickTagsError(
+                  onRetry: () => ref.invalidate(quickTagsProvider),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ] else if (all.isNotEmpty) ...[
                 Text(
                   'Chọn tối đa $_maxReviewTags nhận xét nhanh',
                   style: context.textStyles.bodySmall,
@@ -391,6 +397,11 @@ class _TripFeedbackSheetState extends ConsumerState<_TripFeedbackSheet> {
               _label(context, 'Chuyến đi này thế nào?'),
               if (tags.isLoading)
                 const SkeletonBlock(height: AppSizes.minTouchTarget)
+              else if (tags.hasError)
+                // Feedback needs a tag, so the form cannot work without them.
+                _QuickTagsError(
+                  onRetry: () => ref.invalidate(quickTagsProvider),
+                )
               else
                 AppChipGroup<String>(
                   wrap: true,
@@ -556,4 +567,23 @@ class _ReplaceStopSheetState extends ConsumerState<_ReplaceStopSheet> {
       ),
     );
   }
+}
+
+/// Quick tags (`master-data`) failed to load: explain and offer a retry.
+class _QuickTagsError extends StatelessWidget {
+  const _QuickTagsError({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => AppBanner(
+    kind: BannerKind.error,
+    message: 'Chưa tải được danh sách nhận xét nhanh.',
+    action: AppButton.ghost(
+      buttonKey: const ValueKey('quick-tags-retry'),
+      label: 'Thử lại',
+      icon: LucideIcons.refreshCw,
+      compact: true,
+      onPressed: onRetry,
+    ),
+  );
 }

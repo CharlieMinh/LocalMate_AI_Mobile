@@ -75,6 +75,9 @@ class LiveBackend {
 
   /// `/subscription/me` answers 503 while set.
   bool subscriptionDown = false;
+
+  /// `/master-data` answers 503 while set.
+  bool masterDataDown = false;
   bool notificationRead = false;
 
   /// Two notification pages (page 2 is an older, contract-shaped item).
@@ -223,7 +226,12 @@ class LiveBackend {
       ),
       final name => reply(liveJson(name), status: 401),
     }),
-    'GET /master-data': (_) => reply(liveJson('master-data')),
+    'GET /master-data': (_) => masterDataDown
+        ? reply(
+            jsonEncode({'status': 503, 'title': 'Service Unavailable'}),
+            status: 503,
+          )
+        : reply(liveJson('master-data')),
     'GET /places/metro-clusters': (_) => reply(liveJson('clusters')),
     'GET /itineraries/curated': (_) => reply(liveJson('curated')),
     'GET /tags': (_) => reply(liveJson('tags')),
