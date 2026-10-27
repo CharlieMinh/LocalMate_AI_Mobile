@@ -14,6 +14,7 @@ import 'package:localmate_ai_mobile/app/localmate_app.dart';
 import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/app/ui_providers.dart';
 import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
+import 'package:localmate_ai_mobile/features/trips/application/trips_providers.dart';
 
 import '../test/support/live_backend.dart';
 
@@ -108,8 +109,58 @@ void main() {
     await tap(find.text('Xác nhận chốt'));
     await shot('trip-finalized');
     await tester.pump(const Duration(seconds: 5)); // let the snackbar close
+    await tester.pumpAndSettle();
+
+    // Finalized trip: stop review and trip feedback sheets.
+    await tap(find.widgetWithText(TextButton, 'Đánh giá'));
+    await tap(find.byTooltip('4 sao'));
+    await tap(find.byKey(const ValueKey('review-tag-NearMetro')));
+    await shot('review-sheet');
+    await tap(find.byTooltip('Đóng'));
+    await tap(find.text('Đánh giá chuyến đi'));
+    await tap(find.byKey(const ValueKey('feedback-tag-Suitable')));
+    await shot('feedback-sheet');
+    await tap(find.byTooltip('Đóng'));
+
+    // Draft editing on a fresh draft.
+    backend.finalized = false;
+    container.invalidate(tripDetailProvider(backend.tripId));
+    await tester.pumpAndSettle();
+    await shot('draft-edit');
+    await tap(find.byKey(ValueKey('draft-replace-${backend.secondItemId}')));
+    await shot('replace-sheet');
+    await tap(find.byTooltip('Đóng'));
+
+    // Account: notifications, profile edit, PayOS.
+    router.go('/account');
+    await tester.pumpAndSettle();
+    await tap(find.text('Thông báo'));
+    await shot('notifications');
+    await tap(find.byTooltip('Quay lại'));
+    await tap(find.byKey(const ValueKey('account-section-Sở thích của bạn')));
+    await shot('profile-edit');
+    await tap(find.byTooltip('Quay lại'));
+    backend.payosConfigured = true;
+    await tap(
+      find.byKey(const ValueKey('account-section-Gói & quyền sử dụng')),
+    );
+    await tap(find.byKey(const ValueKey('plan-buy-TripPass')));
+    await shot('checkout-sheet');
+    backend.orderStatuses = ['Pending'];
+    await tap(find.byKey(const ValueKey('checkout-pay')));
+    await shot('payment-pending');
+    backend.orderStatuses = ['Paid'];
+    await tester.pump(const Duration(seconds: 3));
+    await shot('payment-paid');
+
     unawaited(container.read(authProvider.notifier).logout());
     await tester.pumpAndSettle();
+    router.go('/register');
+    await shot('register');
+    router.go('/forgot-password');
+    await shot('forgot-password');
+    router.go('/login');
+    await shot('login-google');
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(hours: 2)); // flush remaining timers
   });

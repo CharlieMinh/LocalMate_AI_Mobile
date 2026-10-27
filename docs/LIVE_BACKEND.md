@@ -15,7 +15,12 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5286
 
 # Production
 flutter build apk --dart-define=APP_ENV=production --dart-define=API_BASE_URL=https://<api-domain>
+
+# Bật đăng nhập Google (client ID loại *web*, trùng GoogleAuth__ClientId của backend)
+flutter run --dart-define=API_BASE_URL=... --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client-id>.apps.googleusercontent.com
 ```
+
+Không có `GOOGLE_SERVER_CLIENT_ID` thì nút Google bị tắt. Android cần thêm một OAuth client loại Android (package name + SHA-1 của keystore) trong cùng Google Cloud project; việc này cấu hình trên console, không nằm trong mã nguồn.
 
 ## Chạy backend cục bộ để thử
 
@@ -39,23 +44,33 @@ Backend tự migrate và seed dữ liệu: 14 ga, khoảng 65 địa điểm, 3 
 |---|---|
 | Trang chủ / Khám phá / Chi tiết địa điểm | `GET /places/metro-clusters`, `/itineraries/curated`, `/search`, `/places/{id}` |
 | Metro / Chi tiết ga | `GET /master-data`, `/metro/journeys`, `/metro/stations/{order}/departures` |
-| Đăng nhập / phiên | `POST /auth/login`, `GET /users/me`. JWT lưu trong secure storage (namespace riêng với bản mock). Không có refresh token: khi gặp 401 hoặc token hết hạn, app tự đăng xuất và báo "Phiên đăng nhập đã hết hạn" |
-| Planner | `GET /tags` (sở thích), `POST /trips/generate` → mở thẳng lịch trình nháp vừa lưu. Khách chưa đăng nhập được mời đăng nhập trước |
-| Lịch trình của tôi | `GET /trips/my-trips`, `GET /trips/{id}`, `POST /trips/{id}/finalize`, `PUT /trips/items/{id}/visit` |
-| Tài khoản / Gói | `GET /subscription/me` (lượt tạo, lịch trình đã lưu, lượt AI), `GET /subscription/plans` (giá thật), `GET /tags` (tên sở thích đã lưu) |
+| Đăng nhập / phiên | `POST /auth/login`, `POST /auth/google`, `GET /users/me`. JWT lưu trong secure storage (namespace riêng với bản mock). Không có refresh token: khi gặp 401 hoặc token hết hạn, app tự đăng xuất và báo "Phiên đăng nhập đã hết hạn" |
+| Đăng ký (`/register`) | `POST /auth/register` → mã 6 số qua email → `/auth/register/verify`, `/auth/register/resend` (đếm ngược theo `resendAfterSeconds`). Xác thực xong app tự đăng nhập |
+| Quên mật khẩu (`/forgot-password`) | `POST /auth/password-reset/request`, `/auth/password-reset/confirm` |
+| Hồ sơ & cá nhân hóa | `PATCH /users/me` (tên, sở thích, phong cách), tên tag từ `GET /tags` |
+| Thông báo (`/notifications`) | `GET /notifications`, `/notifications/unread-count` (số chưa đọc ở Tài khoản), `POST /notifications/{id}/read`, `/notifications/read-all`. Chạm thông báo mở lịch trình / gói / Planner |
+| Planner | `GET /tags`, `POST /trips/generate` → mở thẳng lịch trình nháp. "Điền giúp tôi bằng AI": `POST /trips/parse-request` điền sẵn các bước rồi quay về bước 1 để xem lại |
+| Lịch trình nháp | `GET /trips/{id}`, đổi điểm (`GET …/alternatives`, `PUT …/replace`), xoá điểm (`DELETE /trips/{id}/items/{itemId}`), AI giải thích (`POST /trips/{id}/explanations`), chốt (`POST /trips/{id}/finalize`) |
+| Lịch trình đã chốt | `PUT /trips/items/{id}/visit`; đánh giá điểm đã ghé (`GET/POST/DELETE /trips/items/{id}/review`, nhận xét nhanh từ `master-data.reviewQuickTags`); phản hồi chuyến đi (`GET/POST /feedback/trip`, `feedbackQuickTags`) |
+| Gói & thanh toán | `GET /subscription/me`, `/subscription/plans`, `/subscription/checkout-quote`, `POST /subscription/checkout` → mở `checkoutUrl` (PayOS) bằng trình duyệt → `/payment-return?orderId&flow=subscription` hỏi `GET /subscription/orders/{id}` mỗi 3 giây tới khi Paid/Failed/Expired (tối đa 15 phút). Đơn đang mở (409 `pending_order_exists`) được mở lại thay vì tạo đơn mới. Liên kết quay về không bao giờ được coi là bằng chứng thanh toán |
+| Giao diện | Lựa chọn Sáng/Tối/Theo hệ thống lưu trên thiết bị (secure storage, khoá `localmate.prefs.themeMode`) |
 
-Lỗi ProblemDetails được map sang tiếng Việt trong `lib/core/network/api_messages.dart` (hết lượt tạo, ngoài vùng phục vụ, Metro chưa chạy, trùng địa điểm…). Lỗi từng trường từ server được hiển thị nguyên văn. Timeout, mất mạng và lỗi 5xx có thông điệp riêng.
+Lỗi ProblemDetails được map sang tiếng Việt trong `lib/core/network/api_messages.dart`. Lỗi từng trường từ server chỉ hiển thị nguyên văn khi server đã trả tiếng Việt; thông điệp mặc định tiếng Anh của ASP.NET được thay bằng câu tiếng Việt. Timeout, mất mạng và lỗi 5xx có thông điệp riêng.
 
-## Còn để TODO (đánh dấu `TODO(phase-5)` trong code)
+## Chưa kiểm chứng end-to-end
 
-- Thanh toán PayOS: `POST /subscription/checkout`, mở `checkoutUrl`, polling `GET /subscription/orders/{id}`.
-- Đăng nhập Google (cần `google_sign_in` và client ID), đăng ký + OTP, quên mật khẩu, phiên demo.
-- Đánh giá điểm dừng và chuyến đi: `POST /trips/items/{id}/review`, `POST /feedback/trip`.
-- Đổi hoặc xóa điểm dừng: `alternatives` / `replace` / `DELETE item`. AI viết lý do (`explanations`) và "Điền giúp tôi" (`parse-request`).
-- Sửa hồ sơ và sở thích (`PATCH /users/me`), thông báo (`/notifications`), lưu lựa chọn giao diện.
+Máy dev không có SMTP, khoá Gemini, cấu hình PayOS và Google OAuth nên các luồng sau mới được kiểm bằng phản hồi **đúng hình dạng hợp đồng** (ghi chú rõ trong `test/support/live_backend.dart`), chưa chạy với dịch vụ thật:
+
+- Đăng ký / quên mật khẩu thành công (backend dev trả 500 vì không gửi được email; lỗi trùng email, sai mã đã thu thật).
+- AI giải thích và "Điền giúp tôi" thành công (backend dev trả 503 `ai_unavailable`, đã thu thật).
+- PayOS: tạo đơn và trạng thái Paid (backend dev trả 502 `payment_gateway_unavailable`, đã thu thật; báo giá đã thu thật).
+- Google: ID token thật (backend trả 401 `invalid_google_token` cho token giả, đã thu thật).
+
+Chưa làm: mua lẻ một lượt chốt lịch trình (`/itinerary-purchases/*`; màn trạng thái đơn đã hỗ trợ `flow=single`), góp ý ứng dụng (`/app-feedback`), phiên demo (`/auth/demo`).
 
 ## Kiểm thử
 
 - `test/live_contract_test.dart`: decode JSON **thu từ backend thật** (`test/fixtures/live/`) bằng model của app. Ngoài ra kiểm tra HTTP client: gắn token, 401 dẫn tới đăng xuất, timeout/offline, map ProblemDetails.
-- `test/live_ui_test.dart`: chạy app ở chế độ backend (cấu hình có URL) với phản hồi thật đã thu: đăng nhập, gói, danh sách và chi tiết lịch trình, chốt, đánh dấu đã ghé, chặn khách tạo lịch trình, lỗi hết lượt.
+- `test/live_ui_test.dart`: chạy app ở chế độ backend (cấu hình có URL) với phản hồi thật đã thu: đăng nhập, gói, danh sách và chi tiết lịch trình, chốt, đánh dấu đã ghé, đánh giá điểm dừng và chuyến đi, đổi / xoá điểm nháp, AI, "Điền giúp tôi", đăng ký, quên mật khẩu, sửa hồ sơ, thông báo, PayOS (thành công, cổng lỗi, đơn đang mở, hết hạn), Google (thành công, huỷ, lỗi), chặn khách tạo lịch trình, lỗi hết lượt.
+- `test/theme_preference_test.dart`: lưu và khôi phục lựa chọn giao diện.
 - `tool/live_capture_test.dart`: chụp các màn trên vào `docs/screenshots/after/live-*.png`.

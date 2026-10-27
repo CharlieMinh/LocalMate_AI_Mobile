@@ -17,9 +17,13 @@ class AppStateView extends StatelessWidget {
     this.primaryAction,
     this.secondaryAction,
     this.compact = false,
+    this.art,
   });
 
   final IllustrationKind illustration;
+
+  /// Replaces the illustration (e.g. a live progress state).
+  final Widget? art;
   final String title;
   final String message;
   final Widget? primaryAction;
@@ -41,10 +45,11 @@ class AppStateView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppIllustration(
-              kind: illustration,
-              size: compact ? AppSpacing.xxxl * 2 : AppSpacing.xxxl * 3,
-            ),
+            art ??
+                AppIllustration(
+                  kind: illustration,
+                  size: compact ? AppSpacing.xxxl * 2 : AppSpacing.xxxl * 3,
+                ),
             const SizedBox(height: AppSpacing.lg),
             Semantics(
               header: true,

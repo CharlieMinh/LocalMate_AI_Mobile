@@ -252,7 +252,8 @@ class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
           ),
         ),
         'Pending' => AppStateView(
-          illustration: IllustrationKind.offline,
+          illustration: IllustrationKind.success,
+          art: const _WaitingArt(),
           title: 'Đang chờ thanh toán',
           message:
               'Hoàn tất ${_vnd(order.amount)} trên trang PayOS. Màn hình này tự cập nhật khi LocalMate nhận được xác nhận.',
@@ -292,6 +293,32 @@ class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
       body: SafeArea(
         top: false,
         child: Center(child: SingleChildScrollView(child: body)),
+      ),
+    );
+  }
+}
+
+/// Pending payment art, same footprint as the state illustrations. Static
+/// on purpose: the page polls quietly and the retry button shows progress.
+class _WaitingArt extends StatelessWidget {
+  const _WaitingArt();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    return ExcludeSemantics(
+      child: Container(
+        width: AppSpacing.xxxl * 3,
+        height: AppSpacing.xxxl * 3,
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          LucideIcons.hourglass,
+          size: AppSpacing.xxxl,
+          color: scheme.primary,
+        ),
       ),
     );
   }

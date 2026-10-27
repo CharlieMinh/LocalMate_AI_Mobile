@@ -482,6 +482,8 @@ class _ReplaceStopSheetState extends ConsumerState<_ReplaceStopSheet> {
     categoryLabel(p.category),
     p.costMax <= 0
         ? 'Miễn phí'
+        : p.costMin == p.costMax || p.costMin <= 0
+        ? '${formatVnd(p.costMax)}đ'
         : '${formatVnd(p.costMin)}–${formatVnd(p.costMax)}đ',
     if (p.distanceFromStationMeters != null && p.stationName != null)
       '${p.distanceFromStationMeters} m tới ga ${p.stationName}',
