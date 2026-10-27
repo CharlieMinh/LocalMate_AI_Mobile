@@ -171,4 +171,4 @@ Có trong thiết kế hoặc backend, nhưng Flutter chưa có:
 - **Kích thước × cỡ chữ × giao diện**: `tool/redesign_capture_test.dart` (mock) và `tool/live_capture_test.dart` (live) chạy cùng ma trận 390×844 sáng/tối, 360×640 chữ 1.3, 393×852 chữ 1.3 tối, 430×932 chữ 1.3, 320×640 chữ 2.0. Không có lỗi layout/tràn.
 - **Khả năng tiếp cận**: `test/accessibility_test.dart` kiểm vùng chạm ≥48dp, nhãn cho phần tử bấm được và tương phản chữ trên các màn chính và các bottom sheet, chế độ mock và live, sáng và tối.
 - `flutter analyze`: sạch. `flutter test`: 311 test pass. `flutter build web --release`: thành công.
-- **Chưa chạy**: `flutter build apk` (máy không có Android SDK), chạy trên thiết bị/emulator thật.
+- `flutter build apk --debug`: thành công. **Chưa chạy** trên thiết bị/emulator thật.

@@ -69,14 +69,18 @@ Bảng điểm từng màn và các vấn đề còn lại: [`UI_AUDIT.md` mục
   - Một test quét để chữ của bản mock không lọt sang bản live.
 - **Ma trận layout** (`tool/redesign_capture_test.dart`, `tool/live_capture_test.dart`): 390×844 sáng/tối, 360×640 chữ 1.3, 393×852 chữ 1.3 tối, 430×932 chữ 1.3, 320×640 chữ 2.0. Không có lỗi tràn.
 - `flutter build web --release`: thành công.
+- `flutter build apk --debug`: thành công (`build/app/outputs/flutter-apk/app-debug.apk`, ~202 MB vì là bản debug). Manifest sau khi merge đã được kiểm bằng `aapt`:
+  - minSdk 24, targetSdk 36.
+  - Có quyền INTERNET và ACCESS_NETWORK_STATE.
+  - `networkSecurityConfig` chỉ cho HTTP tới 10.0.2.2 / localhost / 127.0.0.1.
+  - USE_BIOMETRIC / USE_FINGERPRINT do plugin `flutter_secure_storage` (có từ trước) thêm vào.
 
 ## 6. Chưa làm được / cần lưu ý
 
-1. **Chưa build APK.** Máy dev không có Android SDK (`flutter doctor`: "Unable to locate Android SDK"). Cấu hình Android đã sửa nhưng chưa chạy qua Gradle:
-   - Thêm quyền INTERNET cho bản release, vì bản cũ là mock-only nên không có quyền này.
-   - Bản debug cho phép HTTP tới 10.0.2.2 / localhost qua network security config.
-   - `google_sign_in` có mã native Android, cũng chưa được biên dịch.
-2. **Chưa chạy trên thiết bị hoặc emulator thật.** Mọi ảnh chụp đều là widget test.
+1. **Môi trường build Android** (cài 27/10/2026) nằm ở `%LOCALAPPDATA%\Android\Sdk`:
+   - command-line tools 16111833, platform 36 (Gradle tự thêm platform 35 và CMake 3.22.1), build-tools 36.0.0, NDK 28.2.13676358, JDK 21.
+   - Bộ command-line tools mới thay `sdkmanager` bằng `android sdk install <gói/phiên-bản>`, nên Gradle không tự cài được NDK; phải cài NDK bằng lệnh `android`.
+2. **Chưa chạy trên thiết bị hoặc emulator thật.** Mọi ảnh chụp đều là widget test. APK chưa được cài lên máy nào.
 3. **Dịch vụ ngoài chưa chạy thật**, vì backend dev không có SMTP, Gemini, PayOS và Google OAuth:
    - Luồng gửi mã email (đăng ký, quên mật khẩu), AI, PayOS và Google mới được kiểm bằng phản hồi đúng hình dạng hợp đồng.
    - Các phản hồi lỗi thì đã thu từ backend thật.
@@ -95,5 +99,5 @@ Bảng điểm từng màn và các vấn đề còn lại: [`UI_AUDIT.md` mục
 flutter analyze
 flutter test
 flutter test tool/redesign_capture_test.dart tool/live_capture_test.dart tool/gallery_capture_test.dart
-flutter build apk --debug   # cần Android SDK
+flutter build apk --debug
 ```
