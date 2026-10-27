@@ -231,12 +231,22 @@ TravelLeg? _legOf(PlannerLegDto? leg) {
 
 /// `/trips/:id`: a saved trip. Drafts can be finalized; finalized trips
 /// track visited stops.
-class TripDetailPage extends ConsumerWidget {
+class TripDetailPage extends ConsumerStatefulWidget {
   const TripDetailPage(this.id, {super.key});
   final String id;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TripDetailPage> createState() => _TripDetailPageState();
+}
+
+class _TripDetailPageState extends ConsumerState<TripDetailPage> {
+  /// Stops with a visit toggle in flight (until the detail is reloaded).
+  final _pendingVisits = <String>{};
+
+  String get id => widget.id;
+
+  @override
+  Widget build(BuildContext context) {
     final trip = ref.watch(tripDetailProvider(id));
     final draft = trip.asData?.value.status == 'Draft';
     return Scaffold(
@@ -260,7 +270,7 @@ class TripDetailPage extends ConsumerWidget {
                 AppButton(
                   label: 'Chốt lịch trình',
                   icon: LucideIcons.check,
-                  onPressed: () => _finalize(context, ref),
+                  onPressed: _finalize,
                 ),
               ],
             )
@@ -306,7 +316,8 @@ class TripDetailPage extends ConsumerWidget {
                                   : _legOf(item.leg),
                             ),
                         ],
-                        onToggleVisited: (stop) => _toggle(context, ref, stop),
+                        pendingStopIds: _pendingVisits,
+                        onToggleVisited: _toggle,
                         onReviewStop: (stop) => showStopReviewSheet(
                           context,
                           itemId: stop.id,
@@ -323,7 +334,7 @@ class TripDetailPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _finalize(BuildContext context, WidgetRef ref) async {
+  Future<void> _finalize() async {
     final confirmed = await showAppConfirmSheet(
       context: context,
       title: 'Chốt lịch trình?',
@@ -333,7 +344,7 @@ class TripDetailPage extends ConsumerWidget {
       confirmLabel: 'Xác nhận chốt',
       confirmIcon: LucideIcons.check,
     );
-    if (!confirmed || !context.mounted) return;
+    if (!confirmed || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     // The page may be left while the request runs; refresh through the
     // container, which outlives this widget's ref.
@@ -352,18 +363,28 @@ class TripDetailPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _toggle(
-    BuildContext context,
-    WidgetRef ref,
-    FinalizedStop stop,
-  ) async {
+  /// The endpoint flips the stored value, so one toggle per stop at a time:
+  /// the action stays disabled until the reloaded detail shows the result.
+  Future<void> _toggle(FinalizedStop stop) async {
+    if (!_pendingVisits.add(stop.id)) return;
+    setState(() {});
     final messenger = ScaffoldMessenger.of(context);
     final container = ProviderScope.containerOf(context, listen: false);
     try {
       await container.read(tripsRepositoryProvider).toggleVisited(stop.id);
-      container.invalidate(tripDetailProvider(id));
+      if (!mounted) {
+        container.invalidate(tripDetailProvider(id));
+        return;
+      }
+      try {
+        await container.refresh(tripDetailProvider(id).future);
+      } catch (_) {
+        // The page shows the detail's own load error.
+      }
     } on ApiFailure catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
+    } finally {
+      if (mounted) setState(() => _pendingVisits.remove(stop.id));
     }
   }
 }

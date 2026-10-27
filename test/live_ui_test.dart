@@ -852,4 +852,31 @@ void main() {
     expect(find.text('Quanh ga Bến Thành · 4 giờ'), findsOneWidget);
     await finish(tester, container);
   });
+
+  testWidgets('a second visit tap is ignored while the first is in flight', (
+    tester,
+  ) async {
+    backend
+      ..finalized = true
+      ..visitGate = Completer<void>();
+    final container = await boot(
+      tester,
+      route: '/trips/${backend.tripId}',
+      signIn: true,
+    );
+    final toggle = find.byKey(ValueKey('visit-${backend.itemId}'));
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pump();
+    // Disabled while the request runs: a second tap sends nothing.
+    expect(tester.widget<TextButton>(toggle).onPressed, isNull);
+    await tester.tap(toggle, warnIfMissed: false);
+    await tester.pump();
+    backend.visitGate!.complete();
+    await tester.pumpAndSettle();
+    expect(backend.calls.where((c) => c == 'visit'), hasLength(1));
+    expect(tester.widget<TextButton>(toggle).onPressed, isNotNull);
+    await finish(tester, container);
+  });
 }

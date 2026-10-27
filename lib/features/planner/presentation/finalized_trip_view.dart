@@ -41,6 +41,7 @@ class FinalizedTripView extends StatelessWidget {
     required this.onToggleVisited,
     required this.onReviewStop,
     required this.onTripFeedback,
+    this.pendingStopIds = const {},
   });
   final String title;
   final String dateLine;
@@ -48,6 +49,10 @@ class FinalizedTripView extends StatelessWidget {
   final ValueChanged<FinalizedStop> onToggleVisited;
   final ValueChanged<FinalizedStop> onReviewStop;
   final VoidCallback onTripFeedback;
+
+  /// Stops whose visit toggle is in flight: their action is disabled so a
+  /// second tap cannot flip the server state back.
+  final Set<String> pendingStopIds;
 
   @override
   Widget build(BuildContext context) {
@@ -143,13 +148,17 @@ class FinalizedTripView extends StatelessWidget {
                   onPressed: () => onReviewStop(stops[i]),
                 ),
               AppButton.ghost(
+                buttonKey: ValueKey('visit-${stops[i].id}'),
                 label: stops[i].visited ? 'Bỏ đánh dấu' : 'Đánh dấu đã ghé',
                 icon: stops[i].visited
                     ? LucideIcons.undo2
                     : LucideIcons.mapPinCheck,
                 compact: true,
                 haptic: true,
-                onPressed: () => onToggleVisited(stops[i]),
+                loading: pendingStopIds.contains(stops[i].id),
+                onPressed: pendingStopIds.contains(stops[i].id)
+                    ? null
+                    : () => onToggleVisited(stops[i]),
               ),
             ],
           ),

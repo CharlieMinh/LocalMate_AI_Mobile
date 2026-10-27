@@ -95,6 +95,9 @@ class LiveBackend {
   /// When set, finalize waits for it (to leave the page meanwhile).
   Completer<void>? finalizeGate;
 
+  /// When set, the visit toggle waits for it (slow connection).
+  Completer<void>? visitGate;
+
   /// When set, marking notifications read waits for it.
   Completer<void>? readGate;
 
@@ -266,8 +269,9 @@ class LiveBackend {
       finalized = true;
       return reply(liveJson('finalize'));
     },
-    'PUT /trips/items/$itemId/visit': (_) {
+    'PUT /trips/items/$itemId/visit': (_) async {
       calls.add('visit');
+      await visitGate?.future;
       return reply(liveJson('visit'));
     },
     'GET /trips/items/$itemId/review': (_) => reviewed
