@@ -72,6 +72,9 @@ class LiveBackend {
   /// A signed-in user with no saved trips (until one is generated).
   bool noTrips = false;
   int subscriptionReads = 0;
+
+  /// `/subscription/me` answers 503 while set.
+  bool subscriptionDown = false;
   bool notificationRead = false;
 
   /// Two notification pages (page 2 is an older, contract-shaped item).
@@ -230,7 +233,12 @@ class LiveBackend {
     'GET /subscription/plans': (_) => reply(liveJson('plans')),
     'GET /subscription/me': (_) {
       subscriptionReads++;
-      return reply(liveJson('subscription-me'));
+      return subscriptionDown
+          ? reply(
+              jsonEncode({'status': 503, 'title': 'Service Unavailable'}),
+              status: 503,
+            )
+          : reply(liveJson('subscription-me'));
     },
     'GET /trips/my-trips': (_) => reply(
       noTrips

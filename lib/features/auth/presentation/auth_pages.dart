@@ -1089,14 +1089,19 @@ class _LivePlansPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final plans = ref.watch(plansProvider);
-    final sub = ref.watch(subscriptionProvider).asData?.value;
+    final subscription = ref.watch(subscriptionProvider);
+    // Purchases need the current plan; a failed load is not "signed out".
+    final sub = subscription.asData?.value;
     final text = context.textStyles;
     return Scaffold(
       appBar: const AppTopBar(title: 'Gói & quyền sử dụng'),
       body: SafeArea(
         top: false,
         child: RefreshIndicator(
-          onRefresh: () => ref.refresh(plansProvider.future),
+          onRefresh: () => Future.wait<Object?>([
+            ref.refresh(plansProvider.future),
+            ref.refresh(subscriptionProvider.future),
+          ]).catchError((Object _) => const <Object?>[]),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(AppSpacing.gutter),
@@ -1111,13 +1116,28 @@ class _LivePlansPage extends ConsumerWidget {
                       padding: EdgeInsets.zero,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    if (sub == null)
-                      const AppBanner(
-                        kind: BannerKind.warning,
-                        message: 'Đăng nhập để xem gói và hạn mức của bạn.',
-                      )
-                    else
-                      _UsageCard(sub: sub),
+                    subscription.when(
+                      skipLoadingOnRefresh: false,
+                      loading: () => const SkeletonBlock(
+                        height: AppSpacing.xxxl * 2,
+                        radius: AppRadius.lg,
+                      ),
+                      error: (error, _) => AppErrorState(
+                        compact: true,
+                        title: 'Chưa tải được gói hiện tại',
+                        message: error is ApiFailure
+                            ? apiErrorMessage(error)
+                            : 'Vui lòng thử lại.',
+                        onRetry: () => ref.invalidate(subscriptionProvider),
+                      ),
+                      data: (sub) => sub == null
+                          ? const AppBanner(
+                              kind: BannerKind.warning,
+                              message:
+                                  'Đăng nhập để xem gói và hạn mức của bạn.',
+                            )
+                          : _UsageCard(sub: sub),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     const SectionHeader(
                       title: 'Các gói dịch vụ',

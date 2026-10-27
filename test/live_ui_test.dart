@@ -767,4 +767,26 @@ void main() {
     expect(backend.subscriptionReads, greaterThan(readsBefore));
     await finish(tester, container);
   });
+
+  testWidgets('plans: a failed usage load is retryable, not "signed out"', (
+    tester,
+  ) async {
+    backend.subscriptionDown = true;
+    final container = await boot(tester, route: '/account', signIn: true);
+    await tap(
+      tester,
+      find.byKey(const ValueKey('account-section-Gói & quyền sử dụng')),
+    );
+    expect(find.text('Chưa tải được gói hiện tại'), findsOneWidget);
+    expect(find.text('Đăng nhập để xem gói và hạn mức của bạn.'), findsNothing);
+    expect(find.byKey(const ValueKey('plan-buy-TripPass')), findsNothing);
+    // Pull-to-refresh reloads the usage too, once the server is back.
+    backend.subscriptionDown = false;
+    await tester.fling(find.byType(ListView).first, const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text('Chưa tải được gói hiện tại'), findsNothing);
+    expect(find.text('Lượt AI hôm nay'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plan-buy-TripPass')), findsOneWidget);
+    await finish(tester, container);
+  });
 }
