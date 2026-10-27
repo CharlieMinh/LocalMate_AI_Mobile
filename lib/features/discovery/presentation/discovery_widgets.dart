@@ -375,11 +375,14 @@ class CuratedTile extends StatelessWidget {
 }
 
 /// Planner call-to-action card used at the end of discovery lists.
-class PlannerPromoCard extends StatelessWidget {
+class PlannerPromoCard extends ConsumerWidget {
   const PlannerPromoCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goal = ref.watch(mockDataProvider)
+        ? 'để xem lịch trình mẫu.'
+        : 'để tạo lịch trình riêng.';
     final scheme = context.colors;
     final text = context.textStyles;
     return DecoratedBox(
@@ -397,7 +400,8 @@ class PlannerPromoCard extends StatelessWidget {
       child: Pressable(
         onTap: () => context.push('/planner'),
         haptic: true,
-        semanticLabel: 'Dành một buổi cho chính mình. Chọn điểm xuất phát và thời gian rảnh để xem lịch trình mẫu.',
+        semanticLabel:
+            'Dành một buổi cho chính mình. Chọn điểm xuất phát và thời gian rảnh $goal',
         child: ExcludeSemantics(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -425,7 +429,7 @@ class PlannerPromoCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        'Chọn điểm xuất phát và thời gian rảnh để xem lịch trình mẫu.',
+                        'Chọn điểm xuất phát và thời gian rảnh $goal',
                         style: text.bodySmall?.copyWith(
                           color: scheme.onPrimaryContainer,
                         ),
@@ -443,17 +447,33 @@ class PlannerPromoCard extends StatelessWidget {
   }
 }
 
-class MapsPreviewButton extends StatelessWidget {
+/// Live builds open Google Maps; the mock build only shows the link.
+class MapsPreviewButton extends ConsumerWidget {
   const MapsPreviewButton(this.uri, {super.key, this.expand = false});
   final Uri? uri;
   final bool expand;
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final opened = await ref.read(externalUrlOpenerProvider)(uri!);
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Chưa mở được Google Maps.')),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => AppButton.secondary(
-    label: 'Xem liên kết Google Maps',
+  Widget build(BuildContext context, WidgetRef ref) => AppButton.secondary(
+    label: ref.watch(mockDataProvider)
+        ? 'Xem liên kết Google Maps'
+        : 'Chỉ đường bằng Google Maps',
     icon: LucideIcons.map,
     expand: expand,
     onPressed: uri == null
         ? null
+        : !ref.watch(mockDataProvider)
+        ? () => _open(context, ref)
         : () => showAppBottomSheet<void>(
             context: context,
             title: 'Chỉ đường Google Maps',
@@ -496,12 +516,13 @@ class MapsPreviewButton extends StatelessWidget {
   );
 }
 
-class ScheduleView extends StatelessWidget {
+class ScheduleView extends ConsumerWidget {
   const ScheduleView(this.schedule, {super.key});
   final MetroSchedule schedule;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mock = ref.watch(mockDataProvider);
     final scheme = context.colors;
     final app = context.appColors;
     final text = context.textStyles;
@@ -512,18 +533,24 @@ class ScheduleView extends StatelessWidget {
           kind: schedule.withinPeriod ? BannerKind.info : BannerKind.warning,
           title: schedule.estimated
               ? 'Lịch tàu ước tính · Không phải trực tiếp'
-              : 'Lịch mẫu · Không phải trực tiếp',
+              : mock
+              ? 'Lịch mẫu · Không phải trực tiếp'
+              : 'Lịch dự kiến · Không phải trực tiếp',
           message: !schedule.withinPeriod
               ? 'Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'
               : schedule.precision == 'Headway'
               ? 'Giãn cách là khoảng thời gian giữa các chuyến, không phải giờ tàu xuất bến chính xác.'
               : schedule.showExact
-              ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
+              ? (mock
+                    ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
+                    : 'Giờ dưới đây là lịch dự kiến, có thể lệch so với vận hành thực tế.')
               : 'Chưa đủ dữ liệu để xác định thời gian tàu chạy.',
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)',
+          mock
+              ? 'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)'
+              : 'Lịch áp dụng ngày ${schedule.date} (giờ Việt Nam)',
           style: text.bodySmall,
         ),
         for (final direction in schedule.directions)
@@ -584,7 +611,9 @@ class ScheduleView extends StatelessWidget {
                         schedule.withinPeriod) ...[
                       if (direction.headways.isEmpty)
                         Text(
-                          'Chưa có thông tin giãn cách trong bộ mẫu này.',
+                          mock
+                              ? 'Chưa có thông tin giãn cách trong bộ mẫu này.'
+                              : 'Chưa có thông tin giãn cách.',
                           style: text.bodyMedium,
                         ),
                       for (final h in direction.headways)

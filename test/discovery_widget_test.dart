@@ -42,7 +42,9 @@ void main() {
         ],
       });
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+        ProviderScope(
+          child: MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+        ),
       );
       expect(find.text('Hướng Bến Thành'), findsOneWidget);
       expect(find.text('08:00'), findsNothing);
@@ -364,7 +366,9 @@ void main() {
       ],
     });
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+      ProviderScope(
+        child: MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+      ),
     );
     expect(find.text('08:00'), findsNothing);
     expect(find.text('Chưa đủ dữ liệu lịch tàu để hiển thị.'), findsOneWidget);

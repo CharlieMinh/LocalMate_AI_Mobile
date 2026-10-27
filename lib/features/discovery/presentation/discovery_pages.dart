@@ -271,12 +271,18 @@ class _HomeHero extends ConsumerWidget {
                         backgroundColor: onHero,
                         foregroundColor: app.heroStart,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(LucideIcons.sparkles, size: AppSizes.icon),
-                          SizedBox(width: AppSpacing.sm),
-                          Flexible(child: Text('Tạo lịch trình mẫu')),
+                          const Icon(LucideIcons.sparkles, size: AppSizes.icon),
+                          const SizedBox(width: AppSpacing.sm),
+                          Flexible(
+                            child: Text(
+                              ref.watch(mockDataProvider)
+                                  ? 'Tạo lịch trình mẫu'
+                                  : 'Tạo lịch trình',
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -489,7 +495,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           actions: [
             AppIconButton(
               icon: LucideIcons.sparkles,
-              tooltip: 'Tạo lịch trình mẫu',
+              tooltip: ref.watch(mockDataProvider)
+                  ? 'Tạo lịch trình mẫu'
+                  : 'Tạo lịch trình',
               variant: AppIconButtonVariant.tonal,
               onPressed: () => context.push('/planner'),
             ),
@@ -757,9 +765,11 @@ class _PlaceDetailViewState extends ConsumerState<_PlaceDetailView> {
       bottomNavigationBar: AppBottomActionBar(
         children: [
           AppButton(
-            label: p.stationName == null
+            label: p.stationName != null
+                ? 'Tạo lịch trình quanh ga này'
+                : ref.watch(mockDataProvider)
                 ? 'Tạo lịch trình mẫu'
-                : 'Tạo lịch trình quanh ga này',
+                : 'Tạo lịch trình',
             icon: LucideIcons.sparkles,
             haptic: true,
             onPressed: () => context.push('/planner'),
@@ -882,10 +892,10 @@ class _PlaceDetailViewState extends ConsumerState<_PlaceDetailView> {
                         label: 'Khoảng cách tới ga',
                         value: '${distanceLabel(p.distanceMeters!)} (ước tính)',
                       ),
-                    const InfoRow(
+                    InfoRow(
                       icon: LucideIcons.clock,
                       label: 'Giờ mở cửa',
-                      value: 'Chưa xác nhận giờ mở cửa hoặc tình trạng sẵn có.',
+                      value: openingHoursLabel(p.openingHours),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     MapsPreviewButton(
@@ -1033,4 +1043,19 @@ class CuratedDetailPage extends ConsumerWidget {
       ),
     ),
   );
+}
+
+/// "T2: 07:00–22:00" per line; days with no time are marked as unknown.
+String openingHoursLabel(List<OpeningDay>? week) {
+  if (week == null) return 'Chưa xác nhận giờ mở cửa hoặc tình trạng sẵn có.';
+  String hhmm(String? t) => t != null && t.length >= 5 ? t.substring(0, 5) : '';
+  const names = ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  return [
+    for (final d in week)
+      '${names[d.weekday]}: ${d.closed
+          ? 'Đóng cửa'
+          : d.open == null || d.close == null
+          ? 'Chưa rõ giờ'
+          : '${hhmm(d.open)}–${hhmm(d.close)}'}',
+  ].join('\n');
 }

@@ -14,6 +14,7 @@ import 'package:localmate_ai_mobile/core/network/api_messages.dart';
 import 'package:localmate_ai_mobile/core/session/access_token.dart';
 import 'package:localmate_ai_mobile/features/auth/domain/auth_contracts.dart';
 import 'package:localmate_ai_mobile/features/discovery/domain/discovery_models.dart';
+import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_pages.dart';
 import 'package:localmate_ai_mobile/features/planner/data/planner_response_dtos.dart';
 import 'package:localmate_ai_mobile/features/trips/domain/trip_models.dart';
 
@@ -112,6 +113,29 @@ void main() {
       expect(alternatives, hasLength(5));
       expect(alternatives.first.stationName, isNotNull);
       expect((live('delete-item')! as List), hasLength(3));
+    });
+
+    test('opening hours: none in seed data, parsed when present', () {
+      final place = Place.fromJson(live('place')! as Map<String, Object?>);
+      expect(place.openingHours, isNull);
+      expect(openingHoursLabel(null), contains('Chưa xác nhận'));
+      final week = OpeningDay.weekFromJson({
+        'hasData': true,
+        'days': [
+          {'dayOfWeek': 'Sunday', 'isClosed': true},
+          {
+            'dayOfWeek': 'Monday',
+            'isClosed': false,
+            'openTime': '07:00:00',
+            'closeTime': '22:00:00',
+          },
+          {'dayOfWeek': 'Tuesday', 'isClosed': false},
+        ],
+      });
+      expect(
+        openingHoursLabel(week),
+        'T2: 07:00–22:00\nT3: Chưa rõ giờ\nCN: Đóng cửa',
+      );
     });
 
     test('new error codes map to Vietnamese copy', () {

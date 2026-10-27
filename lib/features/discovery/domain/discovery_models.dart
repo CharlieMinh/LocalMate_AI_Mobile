@@ -82,8 +82,13 @@ class Place {
     this.stationName,
     this.stationOrder,
     this.distanceMeters,
+    this.openingHours,
   });
   final String id, name, address, category;
+
+  /// Weekly hours from place detail; null when the backend has none
+  /// (`openingHours.hasData == false`).
+  final List<OpeningDay>? openingHours;
   final String? description, imageUrl, googlePlaceId, stationName;
   final double? latitude, longitude, costMin, costMax, rating, distanceMeters;
   final int? reviewCount, stationOrder;
@@ -109,7 +114,45 @@ class Place {
       distanceMeters:
           number(j, 'distanceFromStationMeters') ??
           (ref['distanceMeters'] as num?)?.toDouble(),
+      openingHours: OpeningDay.weekFromJson(j['openingHours']),
     );
+  }
+}
+
+/// One day of `openingHours.days` (times are `HH:mm:ss`, Vietnam time).
+class OpeningDay {
+  const OpeningDay(this.weekday, {this.closed = false, this.open, this.close});
+
+  /// `DateTime.monday` .. `DateTime.sunday`.
+  final int weekday;
+  final bool closed;
+  final String? open, close;
+
+  static const _days = {
+    'Monday': DateTime.monday,
+    'Tuesday': DateTime.tuesday,
+    'Wednesday': DateTime.wednesday,
+    'Thursday': DateTime.thursday,
+    'Friday': DateTime.friday,
+    'Saturday': DateTime.saturday,
+    'Sunday': DateTime.sunday,
+  };
+
+  static List<OpeningDay>? weekFromJson(Object? raw) {
+    if (raw is! Map || raw['hasData'] != true || raw['days'] is! List) {
+      return null;
+    }
+    final days = [
+      for (final d in raw['days'] as List)
+        if (d is Map && _days[d['dayOfWeek']] != null)
+          OpeningDay(
+            _days[d['dayOfWeek']]!,
+            closed: d['isClosed'] == true,
+            open: d['openTime'] as String?,
+            close: d['closeTime'] as String?,
+          ),
+    ]..sort((a, b) => a.weekday.compareTo(b.weekday));
+    return days.isEmpty ? null : days;
   }
 }
 

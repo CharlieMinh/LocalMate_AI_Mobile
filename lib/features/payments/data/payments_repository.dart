@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/navigation/payment_return_intent.dart';
@@ -165,12 +164,6 @@ class PaymentsRepository {
 
 final paymentsRepositoryProvider = Provider<PaymentsRepository>(
   (ref) => PaymentsRepository(ref.watch(apiProvider)),
-);
-
-/// Opens a URL outside the app (PayOS checkout). Overridden in tests.
-final externalUrlOpenerProvider = Provider<Future<bool> Function(Uri)>(
-  (ref) =>
-      (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
 );
 
 /// Poll interval while an order is pending.

@@ -128,7 +128,9 @@ class _MetroPageState extends ConsumerState<MetroPage> {
                 const SizedBox(height: AppSpacing.xl),
                 _Gutter(
                   child: Text(
-                    'Dữ liệu mẫu offline · Không phải thông tin vận hành trực tiếp.',
+                    ref.watch(mockDataProvider)
+                        ? 'Dữ liệu mẫu offline · Không phải thông tin vận hành trực tiếp.'
+                        : 'Lịch dự kiến · Không phải thông tin vận hành trực tiếp.',
                     style: context.textStyles.bodySmall,
                   ),
                 ),
@@ -198,7 +200,9 @@ class _MetroPageState extends ConsumerState<MetroPage> {
           const SizedBox(height: AppSpacing.md),
         ],
         AppButton(
-          label: pending ? 'Đang xem dữ liệu mẫu…' : 'Xem hành trình mẫu',
+          label: ref.watch(mockDataProvider)
+              ? (pending ? 'Đang xem dữ liệu mẫu…' : 'Xem hành trình mẫu')
+              : (pending ? 'Đang tải hành trình…' : 'Xem hành trình'),
           icon: LucideIcons.route,
           loading: pending,
           expand: true,
@@ -218,8 +222,10 @@ class _MetroPageState extends ConsumerState<MetroPage> {
             onStations: () => changeView(1),
           )
         else
-          const AppBanner(
-            message: 'Bản offline hiện có ví dụ Bến Thành – Nhà hát Thành phố. Các ga khác vẫn có lịch tàu và địa điểm mẫu để tham khảo.',
+          AppBanner(
+            message: ref.watch(mockDataProvider)
+                ? 'Bản offline hiện có ví dụ Bến Thành – Nhà hát Thành phố. Các ga khác vẫn có lịch tàu và địa điểm mẫu để tham khảo.'
+                : 'Chọn ga đi và ga đến để xem thời gian di chuyển và giờ tàu dự kiến.',
           ),
       ],
     );
@@ -411,9 +417,11 @@ class _JourneyResult extends ConsumerWidget {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const AppBanner(
+                  AppBanner(
                     kind: BannerKind.warning,
-                    title: 'Cặp ga này chưa có hành trình mẫu',
+                    title: ref.watch(mockDataProvider)
+                        ? 'Cặp ga này chưa có hành trình mẫu'
+                        : 'Chưa có hành trình cho cặp ga này',
                     message: 'Không có thời gian di chuyển hay giờ tàu đã xác minh cho lựa chọn này. Bạn có thể xem ví dụ có sẵn hoặc lịch tham khảo tại từng ga.',
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -436,7 +444,9 @@ class _JourneyResult extends ConsumerWidget {
             : AppErrorState(
                 compact: true,
                 title: 'Không thể tải hành trình',
-                message: 'Chưa tải được hành trình mẫu. Lựa chọn ga vẫn được giữ nguyên.',
+                message: ref.watch(mockDataProvider)
+                    ? 'Chưa tải được hành trình mẫu. Lựa chọn ga vẫn được giữ nguyên.'
+                    : 'Chưa tải được hành trình. Lựa chọn ga vẫn được giữ nguyên.',
                 onRetry: () => ref.invalidate(journeyProvider(selection)),
               ),
         data: JourneyView.new,
@@ -445,12 +455,13 @@ class _JourneyResult extends ConsumerWidget {
 
 /// Journey summary: board/alight stations on a rail, duration, then the
 /// schedule with its precision rules.
-class JourneyView extends StatelessWidget {
+class JourneyView extends ConsumerWidget {
   const JourneyView(this.journey, {super.key});
   final MetroJourney journey;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mock = ref.watch(mockDataProvider);
     final scheme = context.colors;
     final app = context.appColors;
     final text = context.textStyles;
@@ -488,7 +499,7 @@ class JourneyView extends StatelessWidget {
                             const SizedBox(width: AppSpacing.lg),
                             Expanded(
                               child: Text(
-                                '${journey.minutes} phút · ${journey.stopCount} chặng (ước tính mẫu)',
+                                '${journey.minutes} phút · ${journey.stopCount} chặng ${mock ? '(ước tính mẫu)' : '(ước tính)'}',
                                 style: text.labelMedium?.copyWith(
                                   color: app.metroLine,
                                 ),
@@ -516,7 +527,7 @@ class JourneyView extends StatelessWidget {
               for (final t in journey.trips)
                 StatusChip(
                   label:
-                      '${t.departure.substring(0, 5)} – ${t.arrival.substring(0, 5)} (lịch mẫu)',
+                      '${t.departure.substring(0, 5)} – ${t.arrival.substring(0, 5)} ${mock ? '(lịch mẫu)' : '(dự kiến)'}',
                   kind: StatusKind.info,
                 ),
             ],
@@ -660,10 +671,12 @@ class StationDetailPage extends ConsumerWidget {
                           clusters.where((c) => c.stationId == s.id).toList(),
                         );
                         return places.isEmpty
-                            ? const AppEmptyState(
+                            ? AppEmptyState(
                                 compact: true,
                                 title: 'Chưa có địa điểm quanh ga',
-                                message: 'Không có trong bộ dữ liệu mẫu.',
+                                message: ref.watch(mockDataProvider)
+                                    ? 'Không có trong bộ dữ liệu mẫu.'
+                                    : 'Chưa có địa điểm nào được duyệt quanh ga này.',
                               )
                             : PlaceGrid(places);
                       },

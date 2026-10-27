@@ -8,10 +8,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:localmate_ai_mobile/app/app_config.dart';
 import 'package:localmate_ai_mobile/app/providers.dart';
+import 'package:localmate_ai_mobile/app/ui_providers.dart';
 import 'package:localmate_ai_mobile/core/network/mock_api_client.dart';
 import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
 import 'package:localmate_ai_mobile/features/auth/data/auth_repository.dart';
-import 'package:localmate_ai_mobile/features/payments/data/payments_repository.dart';
 
 import 'fake_session_store.dart';
 
@@ -168,6 +168,9 @@ class LiveBackend {
     'GET /places/metro-clusters': (_) => reply(liveJson('clusters')),
     'GET /itineraries/curated': (_) => reply(liveJson('curated')),
     'GET /tags': (_) => reply(liveJson('tags')),
+    'GET /places/ede34457-c123-4f98-8e49-a4267820f29b': (_) =>
+        reply(liveJson('place')),
+    'GET /metro/stations/1/departures': (_) => reply(liveJson('departures-1')),
     'GET /subscription/plans': (_) => reply(liveJson('plans')),
     'GET /subscription/me': (_) => reply(liveJson('subscription-me')),
     'GET /trips/my-trips': (_) => reply(

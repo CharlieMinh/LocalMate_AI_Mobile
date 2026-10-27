@@ -384,6 +384,8 @@ abstract final class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
+        // A shadow reads as a black halo on dark surfaces.
+        elevation: isDark ? 0 : null,
         contentTextStyle: text.bodyMedium?.copyWith(
           color: scheme.onInverseSurface,
         ),

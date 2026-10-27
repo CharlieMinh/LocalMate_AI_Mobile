@@ -46,7 +46,9 @@ class AppShell extends ConsumerWidget {
                   if (current == Destination.trips)
                     AppIconButton(
                       icon: LucideIcons.plus,
-                      tooltip: 'Tạo lịch trình mẫu',
+                      tooltip: ref.watch(mockDataProvider)
+                          ? 'Tạo lịch trình mẫu'
+                          : 'Tạo lịch trình',
                       variant: AppIconButtonVariant.tonal,
                       onPressed: () => context.push('/planner'),
                     ),

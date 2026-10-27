@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'providers.dart';
 
@@ -85,4 +86,11 @@ final remoteImagesProvider = Provider<bool>(
 /// Shows the "Dữ liệu minh họa" tag on screens backed by fixtures.
 final mockDataProvider = Provider<bool>(
   (ref) => ref.watch(configProvider).mockOnly,
+);
+
+/// Opens a URL outside the app (PayOS checkout, Google Maps). Overridden in
+/// tests.
+final externalUrlOpenerProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) =>
+      (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
 );

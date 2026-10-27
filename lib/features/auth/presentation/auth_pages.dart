@@ -400,8 +400,10 @@ class AuthAccountPage extends ConsumerWidget {
                   ),
                   if (restoring) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    const LinearProgressIndicator(
-                      semanticsLabel: 'Đang khôi phục phiên mẫu',
+                    LinearProgressIndicator(
+                      semanticsLabel: live
+                          ? 'Đang khôi phục phiên đăng nhập'
+                          : 'Đang khôi phục phiên mẫu',
                     ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
@@ -525,10 +527,14 @@ class AuthAccountPage extends ConsumerWidget {
                         : () => showAppBottomSheet<void>(
                             context: context,
                             title: 'Thông báo',
-                            builder: (_) => const AppEmptyState(
+                            builder: (_) => AppEmptyState(
                               compact: true,
-                              title: 'Chưa có thông báo',
-                              message: 'Thông báo chưa được kết nối trong bản offline. Ứng dụng không yêu cầu quyền thông báo.',
+                              title: live
+                                  ? 'Đăng nhập để xem thông báo'
+                                  : 'Chưa có thông báo',
+                              message: live
+                                  ? 'Thông báo về lịch trình đã chốt và thanh toán được lưu theo tài khoản.'
+                                  : 'Thông báo chưa được kết nối trong bản offline. Ứng dụng không yêu cầu quyền thông báo.',
                             ),
                           ),
                   ),
@@ -558,13 +564,17 @@ class AuthAccountPage extends ConsumerWidget {
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Khám phá địa điểm quanh ga, tham khảo Metro và thử xây dựng lịch trình mẫu.',
+                            live
+                                ? 'Khám phá địa điểm quanh ga Metro số 1, tạo lịch trình theo sở thích và lưu lại để đi.'
+                                : 'Khám phá địa điểm quanh ga, tham khảo Metro và thử xây dựng lịch trình mẫu.',
                             style: context.textStyles.bodyMedium,
                           ),
-                          const SizedBox(height: AppSpacing.lg),
-                          const AppBanner(
-                            message: 'Bản trải nghiệm offline · Không gọi Backend hoặc AI, không lưu Trip hay thực hiện thanh toán.',
-                          ),
+                          if (!live) ...[
+                            const SizedBox(height: AppSpacing.lg),
+                            const AppBanner(
+                              message: 'Bản trải nghiệm offline · Không gọi Backend hoặc AI, không lưu Trip hay thực hiện thanh toán.',
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -594,7 +604,9 @@ class AuthAccountPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppButton.ghost(
-                  label: 'Đổi tài khoản mẫu',
+                  label: live
+                      ? 'Đăng nhập tài khoản khác'
+                      : 'Đổi tài khoản mẫu',
                   expand: true,
                   onPressed: () async {
                     await ref.read(authProvider.notifier).logout();
@@ -603,7 +615,9 @@ class AuthAccountPage extends ConsumerWidget {
                 ),
               ] else ...[
                 Text(
-                  'Bạn chưa đăng nhập. Gói dịch vụ, quota và chuyến đi chưa được kết nối.',
+                  live
+                      ? 'Đăng nhập để lưu và chốt lịch trình, xem gói và hạn mức của bạn.'
+                      : 'Bạn chưa đăng nhập. Gói dịch vụ, quota và chuyến đi chưa được kết nối.',
                   style: text.bodySmall,
                 ),
                 if (auth.error != null) ...[
@@ -909,8 +923,10 @@ class PersonalizationPage extends ConsumerWidget {
                       ],
                     )
                   else
-                    const AppBanner(
-                      message: 'Chưa có dữ liệu sở thích tài khoản. Bạn vẫn có thể chọn sở thích riêng khi tạo lịch trình mẫu.',
+                    AppBanner(
+                      message: ref.watch(liveBackendProvider)
+                          ? 'Đăng nhập để lưu sở thích. Bạn vẫn có thể chọn sở thích riêng khi tạo lịch trình.'
+                          : 'Chưa có dữ liệu sở thích tài khoản. Bạn vẫn có thể chọn sở thích riêng khi tạo lịch trình mẫu.',
                     ),
                   const SizedBox(height: AppSpacing.xl),
                   const SectionHeader(
@@ -919,7 +935,9 @@ class PersonalizationPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Chưa được kết nối · Không lưu thay đổi hồ sơ trong bản offline.',
+                    ref.watch(liveBackendProvider)
+                        ? 'Đăng nhập để chọn phong cách du lịch.'
+                        : 'Chưa được kết nối · Không lưu thay đổi hồ sơ trong bản offline.',
                     style: text.bodyMedium?.copyWith(
                       color: context.colors.onSurfaceVariant,
                     ),

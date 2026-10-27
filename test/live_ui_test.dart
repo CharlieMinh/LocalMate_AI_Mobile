@@ -537,4 +537,57 @@ void main() {
     );
     expect(container.read(authProvider).authenticated, isFalse);
   });
+
+  testWidgets('live mode never shows mock-build wording', (tester) async {
+    // Copy that only makes sense in the offline build.
+    final mockOnly = RegExp(
+      r'offline|Offline|tài khoản mẫu|dữ liệu mẫu|bộ mẫu|phiên mẫu|'
+      r'Tạo lịch trình mẫu|xem lịch trình mẫu|lịch mẫu|ước tính mẫu',
+    );
+    final container = await boot(tester, route: '/home');
+    final router = container.read(routerProvider);
+    Iterable<String> visibleText() => tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '');
+    Future<void> check(String route) async {
+      router.go(route);
+      await tester.pumpAndSettle();
+      final leaks = visibleText().where(mockOnly.hasMatch).toList();
+      expect(leaks, isEmpty, reason: route);
+    }
+
+    for (final route in [
+      '/home',
+      '/metro',
+      '/stations/1',
+      '/places/ede34457-c123-4f98-8e49-a4267820f29b',
+      '/account',
+      '/login',
+      '/trips',
+    ]) {
+      await check(route);
+    }
+    unawaited(
+      container.read(authProvider.notifier).login('user1@localmate.dev', 'x'),
+    );
+    await tester.pumpAndSettle();
+    for (final route in ['/account', '/trips', '/trips/${backend.tripId}']) {
+      await check(route);
+    }
+    await finish(tester, container);
+  });
+
+  testWidgets('live place detail opens Google Maps outside the app', (
+    tester,
+  ) async {
+    await boot(tester, route: '/places/ede34457-c123-4f98-8e49-a4267820f29b');
+    await tap(tester, find.text('Chỉ đường bằng Google Maps'));
+    expect(backend.opened, hasLength(1));
+    final uri = backend.opened.single;
+    expect(uri.host, 'www.google.com');
+    expect(
+      uri.queryParameters['destination_place_id'],
+      'ChIJLUnNLj8vdTERtZ0FtgSj9-A',
+    );
+  });
 }
