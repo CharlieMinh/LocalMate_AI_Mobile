@@ -227,10 +227,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   });
 
   Future<void> _verify() => _run(() async {
-    await _repo.verifyRegistration(_sent!.email, _code.text);
-    if (!mounted) return;
+    // Read before awaiting: the account exists once verified, so sign in
+    // even if the user leaves this page meanwhile.
     final auth = ref.read(authProvider.notifier);
-    await auth.login(_sent!.email, _password.text);
+    final email = _sent!.email;
+    final password = _password.text;
+    await _repo.verifyRegistration(email, _code.text);
+    await auth.login(email, password);
     if (!mounted) return;
     AppHaptics.success();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -608,6 +611,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     if (!_form.currentState!.validate()) return;
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    // Read before awaiting: the save still lands if the page is left.
+    final auth = ref.read(authProvider.notifier);
     setState(() {
       _busy = true;
       _error = null;
@@ -620,7 +625,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
             interestTagIds: _prefsChanged ? _interests.toList() : null,
             travelStyleTagIds: _prefsChanged ? _styles.toList() : null,
           );
-      ref.read(authProvider.notifier).profileUpdated(profile);
+      auth.profileUpdated(profile);
       AppHaptics.success();
       messenger.showSnackBar(
         const SnackBar(content: Text('Đã lưu hồ sơ của bạn.')),

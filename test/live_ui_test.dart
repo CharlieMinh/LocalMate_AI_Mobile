@@ -693,4 +693,25 @@ void main() {
     expect(find.text('Đang chờ thanh toán'), findsOneWidget);
     await finish(tester, container);
   });
+
+  testWidgets('leaving a trip while it is being finalized still refreshes', (
+    tester,
+  ) async {
+    backend.finalizeGate = Completer<void>();
+    final container = await boot(tester, route: '/trips', signIn: true);
+    await tap(tester, find.text('Quanh ga Bến Thành · 4 giờ'));
+    await tap(tester, find.widgetWithText(FilledButton, 'Chốt lịch trình'));
+    await tap(tester, find.text('Xác nhận chốt'));
+    // Back to the list before the server answers.
+    await tap(tester, find.byTooltip('Quay lại'));
+    expect(find.text('Bản nháp'), findsWidgets);
+    backend.finalizeGate!.complete();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(backend.calls, contains('finalize'));
+    // The list was refetched and now shows the trip as finalized.
+    expect(find.text('Đã chốt'), findsWidgets);
+    await tester.pump(const Duration(seconds: 5));
+    await finish(tester, container);
+  });
 }

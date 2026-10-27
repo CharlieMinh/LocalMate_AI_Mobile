@@ -35,13 +35,18 @@ class ApiClient {
           final token = tokens.token;
           if (token != null && !options.headers.containsKey('Authorization')) {
             options.headers['Authorization'] = 'Bearer $token';
-            options.extra[_usedSession] = true;
+            options.extra[_usedSession] = token;
           }
           handler.next(options);
         },
         onError: (error, handler) {
+          // Only a 401 for the token still in use ends the session: a
+          // late reply to a request from an earlier session must not sign
+          // out the account that is signed in now.
+          final used = error.requestOptions.extra[_usedSession];
           if (error.response?.statusCode == 401 &&
-              error.requestOptions.extra[_usedSession] == true) {
+              used != null &&
+              used == tokens.token) {
             tokens.onUnauthorized?.call();
           }
           handler.next(error);

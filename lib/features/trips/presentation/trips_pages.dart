@@ -335,9 +335,12 @@ class TripDetailPage extends ConsumerWidget {
     );
     if (!confirmed || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    // The page may be left while the request runs; refresh through the
+    // container, which outlives this widget's ref.
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(tripsRepositoryProvider).finalize(id);
-      ref
+      await container.read(tripsRepositoryProvider).finalize(id);
+      container
         ..invalidate(tripDetailProvider(id))
         ..invalidate(myTripsProvider)
         ..invalidate(subscriptionProvider);
@@ -355,9 +358,10 @@ class TripDetailPage extends ConsumerWidget {
     FinalizedStop stop,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await ref.read(tripsRepositoryProvider).toggleVisited(stop.id);
-      ref.invalidate(tripDetailProvider(id));
+      await container.read(tripsRepositoryProvider).toggleVisited(stop.id);
+      container.invalidate(tripDetailProvider(id));
     } on ApiFailure catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
     }
@@ -375,8 +379,12 @@ class _DraftView extends ConsumerStatefulWidget {
 class _DraftViewState extends ConsumerState<_DraftView> {
   bool _explaining = false;
 
-  void _refresh() => ref
-    ..invalidate(tripDetailProvider(widget.trip.id))
+  /// Read before an await: the page may be left while a request runs.
+  ProviderContainer get _container =>
+      ProviderScope.containerOf(context, listen: false);
+
+  static void _refresh(ProviderContainer container, String tripId) => container
+    ..invalidate(tripDetailProvider(tripId))
     ..invalidate(myTripsProvider);
 
   Future<void> _replace(PlannerTripItemDto item) async {
@@ -402,11 +410,13 @@ class _DraftViewState extends ConsumerState<_DraftView> {
     );
     if (!confirmed || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    final container = _container;
+    final tripId = widget.trip.id;
     try {
-      await ref
+      await container
           .read(tripsRepositoryProvider)
-          .deleteItem(widget.trip.id, item.itemId);
-      _refresh();
+          .deleteItem(tripId, item.itemId);
+      _refresh(container, tripId);
       messenger.showSnackBar(
         SnackBar(content: Text('Đã xoá ${item.placeName}.')),
       );
@@ -417,10 +427,12 @@ class _DraftViewState extends ConsumerState<_DraftView> {
 
   Future<void> _explain() async {
     final messenger = ScaffoldMessenger.of(context);
+    final container = _container;
+    final tripId = widget.trip.id;
     setState(() => _explaining = true);
     try {
-      await ref.read(tripsRepositoryProvider).explain(widget.trip.id);
-      _refresh();
+      await container.read(tripsRepositoryProvider).explain(tripId);
+      _refresh(container, tripId);
       messenger.showSnackBar(
         const SnackBar(content: Text('AI đã viết lại lý do cho từng điểm.')),
       );

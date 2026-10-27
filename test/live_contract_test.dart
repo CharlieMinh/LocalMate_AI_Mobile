@@ -170,6 +170,27 @@ void main() {
   group('live HTTP client', () {
     final base = Uri.parse('http://localhost:5286');
 
+    test('a late 401 for an earlier session keeps the new session', () async {
+      final tokens = AccessTokenHolder()..token = 'jwt-old';
+      var expired = 0;
+      tokens.onUnauthorized = () => expired++;
+      final adapter = _Adapter((o) {
+        // The user signs out and in again while this request is in flight.
+        tokens.token = 'jwt-new';
+        return ResponseBody.fromString('', 401);
+      });
+      final client = ApiClient.http(base, tokens, adapter: adapter);
+      await expectLater(
+        client.post('/trips/x/finalize', const {}, (raw) => raw),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(
+        adapter.requests.single.headers['Authorization'],
+        'Bearer jwt-old',
+      );
+      expect(expired, 0);
+    });
+
     test('adds the session token and reports 401 on owned requests', () async {
       final tokens = AccessTokenHolder()..token = 'jwt-abc';
       var expired = 0;

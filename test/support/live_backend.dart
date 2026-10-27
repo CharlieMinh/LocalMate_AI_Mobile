@@ -82,6 +82,9 @@ class LiveBackend {
   /// When set, checkout waits for it (to dismiss the sheet meanwhile).
   Completer<void>? checkoutGate;
 
+  /// When set, finalize waits for it (to leave the page meanwhile).
+  Completer<void>? finalizeGate;
+
   /// The dev backend has no PayOS config (502). When true, checkout answers
   /// with the contract's PaymentIntentResponse shape instead.
   bool payosConfigured = false;
@@ -231,7 +234,8 @@ class LiveBackend {
     ),
     'GET /trips/$tripId': (_) =>
         reply(liveJson(finalized ? 'trip-final' : 'trip')),
-    'POST /trips/$tripId/finalize': (_) {
+    'POST /trips/$tripId/finalize': (_) async {
+      await finalizeGate?.future;
       calls.add('finalize');
       finalized = true;
       return reply(liveJson('finalize'));
