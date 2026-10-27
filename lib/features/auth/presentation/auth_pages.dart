@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../app/providers.dart';
 import '../../../app/ui_providers.dart';
 import '../../../core/network/api_failure.dart';
 import '../../../core/theme/app_colors.dart';
@@ -23,7 +24,11 @@ String authErrorMessage(ApiFailure error) => switch (error.code) {
   'account_locked' => 'Tài khoản đã bị khóa.',
   'account_not_found' => 'Tài khoản không còn tồn tại.',
   'account_link_required' =>
-    'Email này cần liên kết tài khoản trước khi dùng Google.',
+    'Email này đã đăng ký bằng mật khẩu. Hãy đăng nhập bằng email và mật khẩu.',
+  'invalid_google_token' =>
+    'Không xác thực được tài khoản Google. Vui lòng thử lại.',
+  'google_sign_in_failed' =>
+    'Chưa đăng nhập được bằng Google. Vui lòng thử lại.',
   'account_conflict' => 'Thông tin tài khoản Google không khớp.',
   'session_expired' => 'Phiên đã hết hạn. Vui lòng đăng nhập lại.',
   'session_storage_failed' =>
@@ -92,6 +97,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final busy =
         auth.phase == AuthPhase.submitting || auth.phase == AuthPhase.restoring;
     final live = ref.watch(liveBackendProvider);
+    final google = ref.watch(configProvider).googleSignInEnabled;
     final text = context.textStyles;
     final scheme = context.colors;
     return Scaffold(
@@ -274,23 +280,34 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ],
                     const SizedBox(height: AppSpacing.sm),
-                    const Tooltip(
-                      message: 'Google OAuth chưa được cấu hình hoặc xác minh',
-                      child: AppButton.secondary(
+                    if (google)
+                      AppButton.secondary(
+                        buttonKey: const Key('login-google'),
                         label: 'Tiếp tục với Google',
                         icon: LucideIcons.globe,
                         expand: true,
-                        onPressed: null,
+                        onPressed: busy ? null : _controller.loginWithGoogle,
+                      )
+                    else ...[
+                      const Tooltip(
+                        message:
+                            'Google OAuth chưa được cấu hình hoặc xác minh',
+                        child: AppButton.secondary(
+                          label: 'Tiếp tục với Google',
+                          icon: LucideIcons.globe,
+                          expand: true,
+                          onPressed: null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      live
-                          ? 'Đăng nhập Google sẽ có trong bản cập nhật tới.'
-                          : 'Google chưa khả dụng trong bản offline.',
-                      textAlign: TextAlign.center,
-                      style: text.bodySmall,
-                    ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        live
+                            ? 'Đăng nhập Google chưa được cấu hình cho bản này.'
+                            : 'Google chưa khả dụng trong bản offline.',
+                        textAlign: TextAlign.center,
+                        style: text.bodySmall,
+                      ),
+                    ],
                     if (!live) ...[
                       const SizedBox(height: AppSpacing.xl),
                       const AppBanner(

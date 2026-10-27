@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:localmate_ai_mobile/app/app_config.dart';
 import 'package:localmate_ai_mobile/app/providers.dart';
 import 'package:localmate_ai_mobile/core/network/mock_api_client.dart';
+import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
+import 'package:localmate_ai_mobile/features/auth/data/auth_repository.dart';
 import 'package:localmate_ai_mobile/features/payments/data/payments_repository.dart';
 
 import 'fake_session_store.dart';
@@ -23,6 +25,17 @@ ResponseBody reply(String body, {int status = 200}) => ResponseBody.fromString(
     Headers.contentTypeHeader: ['application/json'],
   },
 );
+
+/// Stands in for the Google account sheet: a token, or null (cancelled).
+class FakeGoogleIdentity implements GoogleIdentityProvider {
+  String? idToken = 'google-id-token';
+  int requests = 0;
+  @override
+  Future<String?> requestIdToken() async {
+    requests++;
+    return idToken;
+  }
+}
 
 /// Mutable fake backend so tests can flip state (e.g. after finalize).
 class LiveBackend {
@@ -66,6 +79,10 @@ class LiveBackend {
   List<String> orderStatuses = ['Pending', 'Paid'];
   int _polls = 0;
   final opened = <Uri>[];
+  final google = FakeGoogleIdentity();
+
+  /// Backend answer to `POST /auth/google`: null = success, else a fixture.
+  String? googleError;
 
   Map<String, Object?> get _intent => {
     'orderId': orderId,
@@ -130,6 +147,23 @@ class LiveBackend {
       }),
     ),
     'GET /users/me': (_) => reply(liveJson('me')),
+    'POST /auth/google': (r) => _write('google', r, switch (googleError) {
+      null => reply(
+        jsonEncode({
+          'accessToken': 'jwt-live-google',
+          'tokenType': 'Bearer',
+          'expiresAt': DateTime.now()
+              .toUtc()
+              .add(const Duration(hours: 1))
+              .toIso8601String(),
+        }),
+      ),
+      'account_link_required' => reply(
+        jsonEncode({'status': 409, 'code': 'account_link_required'}),
+        status: 409,
+      ),
+      final name => reply(liveJson(name), status: 401),
+    }),
     'GET /master-data': (_) => reply(liveJson('master-data')),
     'GET /places/metro-clusters': (_) => reply(liveJson('clusters')),
     'GET /itineraries/curated': (_) => reply(liveJson('curated')),
@@ -318,10 +352,14 @@ class LiveBackend {
     return ProviderContainer(
       overrides: [
         configProvider.overrideWithValue(
-          AppConfig(apiBaseUrl: Uri.parse('http://localhost:5286')),
+          AppConfig(
+            apiBaseUrl: Uri.parse('http://localhost:5286'),
+            googleServerClientId: 'test-web-client.apps.googleusercontent.com',
+          ),
         ),
         apiProvider.overrideWithValue(client),
         sessionStoreProvider.overrideWithValue(FakeSessionStore()),
+        googleIdentityProvider.overrideWithValue(google),
         externalUrlOpenerProvider.overrideWithValue((uri) async {
           opened.add(uri);
           return true;

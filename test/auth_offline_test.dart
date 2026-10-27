@@ -39,6 +39,10 @@ class DeferredRepository implements AuthRepository {
   @override
   Future<AuthSession> restore(LoginResponse login, CancelToken token) async =>
       restored!;
+
+  @override
+  Future<AuthSession> signInWithGoogle(String idToken, CancelToken token) =>
+      Future.error(UnsupportedError('not used offline'));
 }
 
 class DeferredStore extends FakeSessionStore {
@@ -417,7 +421,7 @@ void main() {
         authErrorMessage(
           const ApiFailure(FailureKind.unknown, code: 'account_link_required'),
         ),
-        contains('liên kết'),
+        contains('đã đăng ký bằng mật khẩu'),
       );
       await expectLater(
         UnavailableGoogleIdentityProvider().requestIdToken(),

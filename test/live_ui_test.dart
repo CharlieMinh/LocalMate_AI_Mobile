@@ -498,4 +498,43 @@ void main() {
     expect(find.text('Đơn thanh toán đã hết hạn'), findsOneWidget);
     await finish(tester, container);
   });
+
+  testWidgets('Google: ID token goes to /auth/google and signs in', (
+    tester,
+  ) async {
+    final container = await boot(tester, route: '/login');
+    await tap(tester, find.byKey(const Key('login-google')));
+    expect(backend.bodies['google'], {'idToken': 'google-id-token'});
+    expect(container.read(authProvider).authenticated, isTrue);
+    await finish(tester, container);
+  });
+
+  testWidgets('Google: cancelling is quiet, backend errors are explained', (
+    tester,
+  ) async {
+    final container = await boot(tester, route: '/login');
+    backend.google.idToken = null;
+    await tap(tester, find.byKey(const Key('login-google')));
+    expect(backend.calls, isNot(contains('google')));
+    expect(container.read(authProvider).error, isNull);
+    expect(find.text('Chào mừng bạn trở lại'), findsOneWidget);
+
+    backend
+      ..google.idToken = 'google-id-token'
+      ..googleError = 'account_link_required';
+    await tap(tester, find.byKey(const Key('login-google')));
+    expect(
+      find.text(
+        'Email này đã đăng ký bằng mật khẩu. Hãy đăng nhập bằng email và mật khẩu.',
+      ),
+      findsOneWidget,
+    );
+    backend.googleError = 'google-bad';
+    await tap(tester, find.byKey(const Key('login-google')));
+    expect(
+      find.text('Không xác thực được tài khoản Google. Vui lòng thử lại.'),
+      findsOneWidget,
+    );
+    expect(container.read(authProvider).authenticated, isFalse);
+  });
 }

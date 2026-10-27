@@ -11,6 +11,9 @@ final configProvider = Provider<AppConfig>(
   (ref) => AppConfig.fromName(
     const String.fromEnvironment('APP_ENV', defaultValue: 'development'),
     apiBaseUrl: const String.fromEnvironment('API_BASE_URL'),
+    googleServerClientId: const String.fromEnvironment(
+      'GOOGLE_SERVER_CLIENT_ID',
+    ),
   ),
 );
 

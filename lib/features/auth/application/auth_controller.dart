@@ -37,6 +37,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   ref.onDispose(client.dispose);
   return ServiceAuthRepository(MockTransportAuthService(client));
 });
+final googleIdentityProvider = Provider<GoogleIdentityProvider>((ref) {
+  final config = ref.watch(configProvider);
+  return config.googleSignInEnabled
+      ? PluginGoogleIdentityProvider(config.googleServerClientId!)
+      : UnavailableGoogleIdentityProvider();
+});
 final authProvider = NotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );
@@ -179,6 +185,38 @@ class AuthController extends Notifier<AuthState> {
     } catch (error) {
       if (_current(operation)) {
         state = AuthState(AuthPhase.signedOut, error: _failure(error));
+      }
+    }
+  }
+
+  /// Google account → ID token → `POST /auth/google` (live builds only).
+  /// Cancelling the Google sheet returns quietly to signed-out.
+  Future<void> loginWithGoogle() async {
+    if (!_alive || !_live || state.phase == AuthPhase.submitting) return;
+    final operation = _begin();
+    state = const AuthState(AuthPhase.submitting);
+    try {
+      await _persist(operation, null);
+      if (!_current(operation)) return;
+      final idToken = await ref.read(googleIdentityProvider).requestIdToken();
+      if (!_current(operation)) return;
+      if (idToken == null) {
+        state = const AuthState(AuthPhase.signedOut);
+        return;
+      }
+      final session = await _repository.signInWithGoogle(idToken, _cancel!);
+      await _adopt(operation, session, persist: true);
+    } catch (error) {
+      if (_current(operation)) {
+        state = AuthState(
+          AuthPhase.signedOut,
+          error: error is UnsupportedError
+              ? const ApiFailure(
+                  FailureKind.unknown,
+                  code: 'google_sign_in_failed',
+                )
+              : _failure(error),
+        );
       }
     }
   }
