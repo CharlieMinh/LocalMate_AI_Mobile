@@ -18,6 +18,7 @@ import '../features/auth/presentation/account_pages.dart';
 import '../features/auth/presentation/auth_pages.dart';
 import '../features/discovery/presentation/discovery_pages.dart';
 import '../features/discovery/presentation/metro_pages.dart';
+import '../features/payments/presentation/payment_pages.dart';
 import '../features/trips/presentation/trips_pages.dart';
 import 'providers.dart';
 
@@ -118,6 +119,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/payment-return',
         builder: (context, state) {
           final intent = PaymentReturnIntent.parseInternal(state.uri);
+          if (intent != null && !ref.read(configProvider).mockOnly) {
+            return PaymentStatusPage(
+              intent: intent,
+              checkoutUrl: state.extra is Uri ? state.extra! as Uri : null,
+            );
+          }
           return _StatusPage(
             title: 'Quay lại ứng dụng',
             illustration: intent == null
@@ -126,7 +133,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             heading: intent == null
                 ? 'Liên kết chưa hợp lệ'
                 : 'Chưa xác minh thanh toán',
-            message: 'Bản offline không tra cứu đơn hàng và không xác nhận quyền sử dụng.',
+            message: intent == null
+                ? 'Không đọc được mã đơn hàng từ liên kết này.'
+                : 'Bản offline không tra cứu đơn hàng và không xác nhận quyền sử dụng.',
           );
         },
       ),

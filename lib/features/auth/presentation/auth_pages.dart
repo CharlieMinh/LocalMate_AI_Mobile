@@ -15,6 +15,7 @@ import '../../trips/domain/trip_models.dart';
 import '../application/account_providers.dart';
 import '../application/auth_controller.dart';
 import '../domain/auth_contracts.dart';
+import '../../payments/presentation/payment_pages.dart';
 import 'account_pages.dart';
 
 String authErrorMessage(ApiFailure error) => switch (error.code) {
@@ -1047,7 +1048,6 @@ class _SavedTags extends ConsumerWidget {
 }
 
 /// Plans and the signed-in user's usage from the backend.
-// TODO(phase-5): PayOS checkout (`POST /subscription/checkout`, order polling).
 class _LivePlansPage extends ConsumerWidget {
   const _LivePlansPage();
 
@@ -1122,6 +1122,12 @@ class _LivePlansPage extends ConsumerWidget {
                               child: _LivePlanCard(
                                 plan: plan,
                                 current: sub?.plan == plan.code,
+                                onBuy:
+                                    sub != null &&
+                                        plan.price > 0 &&
+                                        sub.plan != plan.code
+                                    ? () => startPlanCheckout(context, plan)
+                                    : null,
                               ),
                             ),
                         ],
@@ -1129,7 +1135,7 @@ class _LivePlansPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Thanh toán qua PayOS sẽ có trong bản cập nhật tới.',
+                      'Thanh toán qua PayOS. Quyền lợi được kích hoạt ngay sau khi giao dịch được xác nhận.',
                       style: text.bodySmall,
                     ),
                   ],
@@ -1201,9 +1207,12 @@ class _UsageCard extends StatelessWidget {
 }
 
 class _LivePlanCard extends StatelessWidget {
-  const _LivePlanCard({required this.plan, required this.current});
+  const _LivePlanCard({required this.plan, required this.current, this.onBuy});
   final SubscriptionPlan plan;
   final bool current;
+
+  /// Null when the plan cannot be bought (free, current, signed out).
+  final VoidCallback? onBuy;
 
   @override
   Widget build(BuildContext context) {
@@ -1270,6 +1279,16 @@ class _LivePlanCard extends StatelessWidget {
                 ],
               ),
             ),
+          if (onBuy != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              buttonKey: ValueKey('plan-buy-${plan.code}'),
+              label: 'Chọn ${plan.name}',
+              icon: LucideIcons.creditCard,
+              expand: true,
+              onPressed: onBuy,
+            ),
+          ],
         ],
       ),
     );

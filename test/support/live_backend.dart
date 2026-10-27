@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:localmate_ai_mobile/app/app_config.dart';
 import 'package:localmate_ai_mobile/app/providers.dart';
 import 'package:localmate_ai_mobile/core/network/mock_api_client.dart';
+import 'package:localmate_ai_mobile/features/payments/data/payments_repository.dart';
 
 import 'fake_session_store.dart';
 
@@ -51,6 +52,32 @@ class LiveBackend {
   /// contract-shaped success below.
   bool aiAvailable = false;
   bool notificationRead = false;
+
+  /// The dev backend has no PayOS config (502). When true, checkout answers
+  /// with the contract's PaymentIntentResponse shape instead.
+  bool payosConfigured = false;
+
+  /// 409 pending_order_exists carrying the open order (contract extensions).
+  bool pendingOrder = false;
+  static const orderId = '6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b';
+  static const checkoutUrl = 'https://pay.payos.vn/web/localmate-test';
+
+  /// Statuses returned by successive order polls; the last one repeats.
+  List<String> orderStatuses = ['Pending', 'Paid'];
+  int _polls = 0;
+  final opened = <Uri>[];
+
+  Map<String, Object?> get _intent => {
+    'orderId': orderId,
+    'qrCode': '000201010212...',
+    'checkoutUrl': checkoutUrl,
+    'amount': 19000,
+    'expiresAt': '2026-10-27T10:00:00Z',
+    'status': 'Pending',
+    'type': 'Purchase',
+    'listPrice': 19000,
+    'creditAmount': 0,
+  };
 
   /// Codes the fake accepts for registration / password reset OTPs.
   static const validCode = '123456';
@@ -230,6 +257,45 @@ class LiveBackend {
       notificationRead = true;
       return _write('read-all', r, reply('', status: 204));
     },
+    'GET /subscription/checkout-quote': (_) =>
+        reply(liveJson('checkout-quote')),
+    'POST /subscription/checkout': (r) => _write(
+      'checkout',
+      r,
+      pendingOrder
+          ? reply(
+              jsonEncode({
+                'status': 409,
+                'code': 'pending_order_exists',
+                ..._intent,
+              }),
+              status: 409,
+            )
+          : payosConfigured
+          ? reply(jsonEncode(_intent), status: 201)
+          : reply(liveJson('checkout'), status: 502),
+    ),
+    'GET /subscription/orders/$orderId': (_) {
+      final status =
+          orderStatuses[_polls < orderStatuses.length
+              ? _polls
+              : orderStatuses.length - 1];
+      _polls++;
+      calls.add('order:$status');
+      return reply(
+        jsonEncode({
+          'orderId': orderId,
+          'status': status,
+          'planCode': 'TripPass',
+          'amount': 19000,
+          'expiresAt': '2026-10-27T10:00:00Z',
+          'paidAt': status == 'Paid' ? '2026-10-27T09:50:00Z' : null,
+          'type': 'Purchase',
+          'listPrice': 19000,
+          'creditAmount': 0,
+        }),
+      );
+    },
     'POST /trips/generate': (_) {
       calls.add('generate');
       return generateQuotaExceeded
@@ -256,6 +322,10 @@ class LiveBackend {
         ),
         apiProvider.overrideWithValue(client),
         sessionStoreProvider.overrideWithValue(FakeSessionStore()),
+        externalUrlOpenerProvider.overrideWithValue((uri) async {
+          opened.add(uri);
+          return true;
+        }),
       ],
     );
   }

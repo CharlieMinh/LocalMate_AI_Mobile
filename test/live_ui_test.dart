@@ -435,4 +435,67 @@ void main() {
     expect(find.text('Lịch trình nháp'), findsOneWidget);
     await finish(tester, container);
   });
+
+  Future<void> openCheckout(WidgetTester tester) async {
+    await tap(
+      tester,
+      find.byKey(const ValueKey('account-section-Gói & quyền sử dụng')),
+    );
+    await tap(tester, find.byKey(const ValueKey('plan-buy-TripPass')));
+    expect(find.text('Cần thanh toán'), findsOneWidget);
+    expect(find.text('Thanh toán 19.000đ'), findsOneWidget);
+  }
+
+  testWidgets('PayOS: quote, checkout opens PayOS, polling until paid', (
+    tester,
+  ) async {
+    backend.payosConfigured = true;
+    final container = await boot(tester, route: '/account', signIn: true);
+    await openCheckout(tester);
+    // The current plan cannot be bought again.
+    expect(find.byKey(const ValueKey('plan-buy-Free')), findsNothing);
+    await tap(tester, find.byKey(const ValueKey('checkout-pay')));
+    expect(backend.bodies['checkout'], {'planCode': 'TripPass'});
+    expect(backend.opened, [Uri.parse(LiveBackend.checkoutUrl)]);
+    expect(find.text('Đang chờ thanh toán'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('Thanh toán thành công'), findsOneWidget);
+    expect(backend.calls.where((c) => c.startsWith('order:')), [
+      'order:Pending',
+      'order:Paid',
+    ]);
+    // No more polling once paid.
+    await tester.pump(const Duration(seconds: 10));
+    expect(backend.calls.where((c) => c.startsWith('order:')), hasLength(2));
+    await finish(tester, container);
+  });
+
+  testWidgets('PayOS: gateway down keeps the sheet open with the reason', (
+    tester,
+  ) async {
+    final container = await boot(tester, route: '/account', signIn: true);
+    await openCheckout(tester);
+    await tap(tester, find.byKey(const ValueKey('checkout-pay')));
+    expect(
+      find.text('Cổng thanh toán đang bận. Vui lòng thử lại sau.'),
+      findsOneWidget,
+    );
+    expect(backend.opened, isEmpty);
+    await finish(tester, container);
+  });
+
+  testWidgets('PayOS: an open order is resumed, expiry is reported', (
+    tester,
+  ) async {
+    backend
+      ..pendingOrder = true
+      ..orderStatuses = ['Expired'];
+    final container = await boot(tester, route: '/account', signIn: true);
+    await openCheckout(tester);
+    await tap(tester, find.byKey(const ValueKey('checkout-pay')));
+    expect(backend.opened, [Uri.parse(LiveBackend.checkoutUrl)]);
+    expect(find.text('Đơn thanh toán đã hết hạn'), findsOneWidget);
+    await finish(tester, container);
+  });
 }
