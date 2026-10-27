@@ -1,28 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../app/ui_providers.dart';
 import '../../../core/network/api_failure.dart';
+import '../../../core/network/api_messages.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../shared/formatters.dart';
-import '../../../shared/theme/app_theme.dart';
-import '../../../shared/widgets/content_states.dart';
-import '../../../shared/widgets/feedback_banner.dart';
 import '../domain/discovery_models.dart';
 
-class OfflineNotice extends StatelessWidget {
+/// Small honest tag shown on screens backed by fixture data (mock builds).
+class OfflineNotice extends ConsumerWidget {
   const OfflineNotice({super.key});
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.only(bottom: 16),
-    child: Text(
-      'M3 OFFLINE · Dữ liệu minh họa, chưa kết nối Backend.',
-      style: TextStyle(
-        color: Brand.navy,
-        fontWeight: FontWeight.w600,
-        fontSize: 12,
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(mockDataProvider)) return const SizedBox.shrink();
+    return const Padding(
+      padding: EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: StatusChip(
+          label: 'Dữ liệu minh họa',
+          icon: LucideIcons.flaskConical,
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class DiscoveryBody extends StatelessWidget {
@@ -30,18 +36,20 @@ class DiscoveryBody extends StatelessWidget {
   final List<Widget> children;
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(AppSpacing.gutter),
     children: [
       Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(
+            maxWidth: AppSpacing.maxContentWidth,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const OfflineNotice(),
               ...children,
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -55,88 +63,306 @@ class SectionTitle extends StatelessWidget {
   final String title;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 12),
+    padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
     child: Semantics(
       header: true,
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: Brand.ink,
-        ),
-      ),
+      child: Text(title, style: context.textStyles.titleMedium),
     ),
   );
 }
 
-class DiscoveryAsync<T> extends StatelessWidget {
+/// Maps an AsyncValue onto skeleton / data / error / offline states.
+/// Error copy keeps the contract mapping (404 vs validation vs generic).
+class DiscoveryAsync<T> extends ConsumerWidget {
   const DiscoveryAsync({
     super.key,
     required this.value,
     required this.retry,
     required this.data,
+    this.loading,
+    this.compact = false,
   });
   final AsyncValue<T> value;
   final VoidCallback retry;
   final Widget Function(T) data;
+
+  /// Skeleton mirroring the loaded layout; defaults to generic blocks.
+  final WidgetBuilder? loading;
+  final bool compact;
+
+  static String errorMessage(Object error, {bool mock = true}) {
+    final failure = error is ApiFailure ? error : null;
+    if (failure == null) return 'Chưa tải được dữ liệu. Vui lòng thử lại.';
+    if (failure.status == 404 && failure.code == null) {
+      return mock
+          ? 'Dữ liệu chưa khả dụng trong bộ mẫu này.'
+          : 'Dữ liệu không còn khả dụng.';
+    }
+    return apiErrorMessage(failure);
+  }
+
   @override
-  Widget build(BuildContext context) => value.when(
+  Widget build(BuildContext context, WidgetRef ref) => value.when(
     skipLoadingOnRefresh: false,
     data: data,
-    loading: () => const LoadingContent(),
-    error: (error, stack) {
-      final failure = error is ApiFailure ? error : null;
-      return ErrorContent(
-        onRetry: retry,
-        message: failure?.status == 404
-            ? 'Dữ liệu chưa khả dụng trong bộ mẫu này.'
-            : failure?.kind == FailureKind.validation
-            ? failure!.fields.values.expand((e) => e).join('\n')
-            : 'Chưa tải được dữ liệu mẫu. Vui lòng thử lại.',
+    loading: () => loading?.call(context) ?? const _GenericSkeleton(),
+    error: (error, stack) =>
+        isOffline(ref) ||
+            (error is ApiFailure && error.kind == FailureKind.offline)
+        ? AppOfflineState(onRetry: retry, compact: compact)
+        : AppErrorState(
+            title: 'Không thể tải dữ liệu',
+            message: errorMessage(error, mock: ref.watch(mockDataProvider)),
+            onRetry: retry,
+            compact: compact,
+          ),
+  );
+}
+
+class _GenericSkeleton extends StatelessWidget {
+  const _GenericSkeleton();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SkeletonBlock(height: AppSpacing.lg, width: AppSizes.placeCardWidth),
+        SizedBox(height: AppSpacing.md),
+        SkeletonBlock(height: AppSizes.thumb, radius: AppRadius.md),
+        SizedBox(height: AppSpacing.md),
+        SkeletonBlock(height: AppSizes.thumb, radius: AppRadius.md),
+      ],
+    ),
+  );
+}
+
+PlaceCategoryTone placeTone(String category) => switch (category) {
+  'Cafe' => PlaceCategoryTone.cafe,
+  'Food' => PlaceCategoryTone.food,
+  'Culture' => PlaceCategoryTone.culture,
+  'CheckIn' => PlaceCategoryTone.checkIn,
+  _ => PlaceCategoryTone.other,
+};
+
+String categoryLabel(String category) => switch (category) {
+  'Culture' => 'Văn hóa',
+  'Cafe' => 'Cà phê',
+  'Food' => 'Ẩm thực',
+  'CheckIn' => 'Check-in',
+  'Nature' => 'Thiên nhiên',
+  _ => category,
+};
+
+/// Backend place categories (`master-data.placeCategories`).
+const placeCategories = ['Cafe', 'Food', 'Culture', 'CheckIn'];
+
+String? costLabel(Place p) {
+  if (p.costMin == null || p.costMax == null) return null;
+  if (p.costMin == 0 && p.costMax == 0) return 'Miễn phí';
+  return '${formatVnd(p.costMin!)}đ – ${formatVnd(p.costMax!)}đ';
+}
+
+String durationLabel(int minutes) {
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (h == 0) return '$m phút';
+  return m == 0 ? '$h giờ' : '$h giờ $m phút';
+}
+
+String distanceLabel(double meters) => meters < 1000
+    ? '${meters.round()} m'
+    : '${(meters / 1000).toStringAsFixed(1).replaceAll('.', ',')} km';
+
+Object placeHeroTag(String id) => 'place-image-$id';
+
+/// A place plus the station it was listed under (clusters carry the
+/// station at group level, details carry it on the place).
+typedef PlaceEntry = ({Place place, String? stationName, int? stationOrder});
+
+List<PlaceEntry> flattenClusters(List<StationCluster> clusters) {
+  final seen = <String>{};
+  return [
+    for (final c in clusters)
+      for (final p in c.places)
+        if (seen.add(p.id))
+          (
+            place: p,
+            stationName: p.stationName ?? c.stationName,
+            stationOrder: p.stationOrder ?? c.stationOrder,
+          ),
+  ];
+}
+
+List<PlaceEntry> placeEntries(List<Place> places) => [
+  for (final p in places)
+    (place: p, stationName: p.stationName, stationOrder: p.stationOrder),
+];
+
+class DiscoveryPlaceCard extends ConsumerWidget {
+  const DiscoveryPlaceCard(this.entry, {super.key, this.width});
+  final PlaceEntry entry;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = entry.place;
+    return PlaceCard(
+      key: ValueKey('place-card-${p.id}'),
+      width: width,
+      name: p.name,
+      categoryLabel: categoryLabel(p.category),
+      tone: placeTone(p.category),
+      stationName: entry.stationName == null ? null : 'Ga ${entry.stationName}',
+      stationOrder: entry.stationOrder,
+      imageUrl: ref.watch(remoteImagesProvider) ? p.imageUrl : null,
+      heroTag: placeHeroTag(p.id),
+      onTap: () => context.push('/places/${Uri.encodeComponent(p.id)}'),
+    );
+  }
+}
+
+/// Responsive grid (2 columns on phones, 3 on tablets). Rows size to their
+/// content so large text never clips a card.
+class PlaceGrid extends StatelessWidget {
+  const PlaceGrid(this.entries, {super.key, this.animate = true});
+  final List<PlaceEntry> entries;
+  final bool animate;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = AppSpacing.md;
+      const tablet = 600.0;
+      final columns = constraints.maxWidth >= tablet ? 3 : 2;
+      final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          for (var i = 0; i < entries.length; i++)
+            SizedBox(
+              width: width,
+              child: animate
+                  ? StaggeredEntrance(
+                      index: i,
+                      child: DiscoveryPlaceCard(entries[i]),
+                    )
+                  : DiscoveryPlaceCard(entries[i]),
+            ),
+        ],
       );
     },
   );
 }
 
-class PlaceMedia extends StatelessWidget {
-  const PlaceMedia(this.url, {super.key, this.height = 160, this.category});
-  final String? url;
-  final double height;
-  final String? category;
+/// Placeholder cards shown while place lists load.
+class PlaceCardsSkeleton extends StatelessWidget {
+  const PlaceCardsSkeleton({super.key, this.horizontal = false});
+  final bool horizontal;
+
+  static const _count = 4;
+
   @override
   Widget build(BuildContext context) {
-    // M3 has no licensed place imagery; even supplied URLs stay offline.
-    final icon = switch (category) {
-      'Culture' => Icons.museum_outlined,
-      'Cafe' => Icons.local_cafe_outlined,
-      'Food' => Icons.restaurant_outlined,
-      'Nature' => Icons.park_outlined,
-      _ => Icons.location_on_outlined,
-    };
-    return Semantics(
-      image: true,
-      label: 'Chưa có ảnh địa điểm',
-      child: ExcludeSemantics(
-        child: Container(
-          height: height,
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE8ECF7),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+    Widget card(int i) => PlaceCard(
+      width: horizontal ? AppSizes.placeCardWidth : null,
+      name: 'Tên địa điểm đang tải',
+      categoryLabel: 'Danh mục',
+      tone: PlaceCategoryTone.values[i % PlaceCategoryTone.values.length],
+      stationName: 'Ga Metro',
+    );
+    return AppSkeleton(
+      enabled: true,
+      child: horizontal
+          ? SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.gutter,
+              ),
+              child: Row(
                 children: [
-                  Icon(icon, size: 40, color: Brand.navy),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Chưa có ảnh địa điểm',
-                    style: TextStyle(color: Brand.navy),
+                  for (var i = 0; i < _count; i++) ...[
+                    if (i > 0) const SizedBox(width: AppSpacing.md),
+                    card(i),
+                  ],
+                ],
+              ),
+            )
+          : LayoutBuilder(
+              builder: (context, c) {
+                final width = (c.maxWidth - AppSpacing.md) / 2;
+                return Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.md,
+                  children: [
+                    for (var i = 0; i < _count; i++)
+                      SizedBox(width: width, child: card(i)),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+}
+
+class CuratedTile extends StatelessWidget {
+  const CuratedTile(this.trip, {super.key});
+  final CuratedTrip trip;
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    final text = context.textStyles;
+    final meta = [
+      durationLabel(trip.durationMinutes),
+      if (trip.items.isNotEmpty) '${trip.items.length} điểm dừng',
+      if (trip.stationName != null) 'Ga ${trip.stationName}',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: AppRadius.card,
+          border: Border.all(color: scheme.outline),
+        ),
+        child: Pressable(
+          onTap: () => context.push('/curated/${Uri.encodeComponent(trip.id)}'),
+          semanticLabel: '${trip.title}, lịch trình mẫu, $meta',
+          child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Container(
+                    width: AppSizes.avatar,
+                    height: AppSizes.avatar,
+                    decoration: BoxDecoration(
+                      color: context.appColors.metroLineContainer,
+                      borderRadius: AppRadius.control,
+                    ),
+                    child: Icon(
+                      LucideIcons.route,
+                      color: context.appColors.metroLine,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(trip.title, style: text.titleSmall),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(meta, style: text.bodySmall),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    LucideIcons.chevronRight,
+                    size: AppSizes.icon,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -148,445 +374,330 @@ class PlaceMedia extends StatelessWidget {
   }
 }
 
-String categoryLabel(String category) => switch (category) {
-  'Culture' => 'Văn hóa',
-  'Cafe' => 'Cà phê',
-  'Food' => 'Ẩm thực',
-  'Nature' => 'Thiên nhiên',
-  _ => category,
-};
-String? costLabel(Place p) => p.costMin == null || p.costMax == null
-    ? null
-    : '${formatVnd(p.costMin!)} – ${formatVnd(p.costMax!)} đ (ước tính mẫu)';
+/// Planner call-to-action card used at the end of discovery lists.
+class PlannerPromoCard extends ConsumerWidget {
+  const PlannerPromoCard({super.key});
 
-class PlaceTile extends StatelessWidget {
-  const PlaceTile(this.place, {super.key, this.compact = false});
-  final Place place;
-  final bool compact;
   @override
-  Widget build(BuildContext context) => compact
-      ? _compact(context)
-      : Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Card(
-            margin: EdgeInsets.zero,
-            elevation: 0,
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: const BorderSide(color: Color(0xFFDCE2ED)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () =>
-                  context.push('/places/${Uri.encodeComponent(place.id)}'),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  PlaceMedia(
-                    place.imageUrl,
-                    height: compact ? 106 : 160,
-                    category: place.category,
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(compact ? 12 : 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!compact)
-                          Text(
-                            categoryLabel(place.category),
-                            style: const TextStyle(
-                              color: Brand.navy,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        const SizedBox(height: 6),
-                        Text(
-                          place.name,
-                          style: compact
-                              ? const TextStyle(
-                                  fontSize: 12,
-                                  height: 1.4,
-                                  color: Brand.ink,
-                                  fontWeight: FontWeight.w700,
-                                )
-                              : Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        if (compact)
-                          Text(
-                            categoryLabel(place.category),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        if (!compact) Text(place.address),
-                        if (place.stationName != null)
-                          Text(
-                            'Ga ${place.stationName}',
-                            style: compact
-                                ? const TextStyle(
-                                    fontSize: 11,
-                                    color: Brand.navy,
-                                  )
-                                : null,
-                          ),
-                        if (!compact && costLabel(place) != null)
-                          Text(costLabel(place)!),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-
-  Widget _compact(BuildContext context) => Card(
-    key: ValueKey('place-card-${place.id}'),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: () => context.push('/places/${Uri.encodeComponent(place.id)}'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          PlaceMedia(place.imageUrl, height: 108, category: place.category),
-          Padding(
-            padding: const EdgeInsets.all(11),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goal = ref.watch(mockDataProvider)
+        ? 'để xem lịch trình mẫu.'
+        : 'để tạo lịch trình riêng.';
+    final scheme = context.colors;
+    final text = context.textStyles;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.card,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primaryContainer,
+            context.appColors.metroLineContainer,
+          ],
+        ),
+      ),
+      child: Pressable(
+        onTap: () => context.push('/planner'),
+        haptic: true,
+        semanticLabel:
+            'Dành một buổi cho chính mình. Chọn điểm xuất phát và thời gian rảnh $goal',
+        child: ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
               children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight:
-                        MediaQuery.textScalerOf(context).scale(12) *
-                        19 /
-                        12 *
-                        2,
+                Container(
+                  width: AppSizes.avatar,
+                  height: AppSizes.avatar,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    shape: BoxShape.circle,
                   ),
-                  child: Text(
-                    place.name,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      height: 19 / 12,
-                      fontWeight: FontWeight.w700,
-                      color: Brand.ink,
-                    ),
-                  ),
+                  child: Icon(LucideIcons.sparkles, color: scheme.onPrimary),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  categoryLabel(place.category),
-                  style: BrandTypography.metadata,
-                ),
-                if (place.stationName != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 2),
-                        child: Icon(
-                          Icons.train_outlined,
-                          size: 14,
-                          color: Brand.navy,
+                      Text(
+                        'Dành một buổi cho chính mình',
+                        style: text.titleSmall?.copyWith(
+                          color: scheme.onPrimaryContainer,
                         ),
                       ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          'Ga ${place.stationName}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            height: 18 / 11,
-                            fontWeight: FontWeight.w600,
-                            color: Brand.navy,
-                          ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        'Chọn điểm xuất phát và thời gian rảnh $goal',
+                        style: text.bodySmall?.copyWith(
+                          color: scheme.onPrimaryContainer,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// Two columns with intrinsic row heights so large text never clips a card.
-class PlaceGrid extends StatelessWidget {
-  const PlaceGrid(this.places, {super.key});
-  final List<Place> places;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      const gap = 12.0;
-      final width = (constraints.maxWidth - gap) / 2;
-      return Wrap(
-        spacing: gap,
-        runSpacing: gap,
-        children: [
-          for (final place in places)
-            SizedBox(width: width, child: PlaceTile(place, compact: true)),
-        ],
-      );
-    },
-  );
-}
-
-class CuratedTile extends StatelessWidget {
-  const CuratedTile(this.trip, {super.key});
-  final CuratedTrip trip;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: OutlinedButton(
-      onPressed: () => context.push('/curated/${Uri.encodeComponent(trip.id)}'),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.route_outlined),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  trip.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                Text('${trip.durationMinutes} phút · Lịch trình mẫu'),
+                Icon(LucideIcons.arrowRight, color: scheme.onPrimaryContainer),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-class MapsPreviewButton extends StatelessWidget {
-  const MapsPreviewButton(this.uri, {super.key});
+/// Live builds open Google Maps; the mock build only shows the link.
+class MapsPreviewButton extends ConsumerWidget {
+  const MapsPreviewButton(this.uri, {super.key, this.expand = false});
   final Uri? uri;
+  final bool expand;
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final opened = await ref.read(externalUrlOpenerProvider)(uri!);
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Chưa mở được Google Maps.')),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    icon: const Icon(Icons.map_outlined),
-    label: const Text('Xem liên kết Google Maps'),
+  Widget build(BuildContext context, WidgetRef ref) => AppButton.secondary(
+    label: ref.watch(mockDataProvider)
+        ? 'Xem liên kết Google Maps'
+        : 'Chỉ đường bằng Google Maps',
+    icon: LucideIcons.map,
+    expand: expand,
     onPressed: uri == null
         ? null
-        : () => showModalBottomSheet<void>(
+        : !ref.watch(mockDataProvider)
+        ? () => _open(context, ref)
+        : () => showAppBottomSheet<void>(
             context: context,
-            useRootNavigator: true,
-            isScrollControlled: true,
-            useSafeArea: true,
-            showDragHandle: true,
-            backgroundColor: Brand.surface,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            builder: (context) => SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  0,
-                  20,
-                  20 + MediaQuery.viewInsetsOf(context).bottom,
+            title: 'Chỉ đường Google Maps',
+            builder: (sheetContext) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Bản offline chỉ xem URL, không mở Google Maps.',
+                  style: sheetContext.textStyles.bodyMedium?.copyWith(
+                    color: sheetContext.colors.onSurfaceVariant,
+                  ),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: sheetContext.colors.surfaceContainer,
+                    borderRadius: AppRadius.control,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: SelectableText(
+                      uri.toString(),
+                      style: sheetContext.textStyles.bodySmall,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              Builder(
+                builder: (c) => AppButton(
+                  label: 'Đóng',
+                  icon: LucideIcons.check,
+                  expand: true,
+                  onPressed: () => Navigator.of(c).pop(),
+                ),
+              ),
+            ],
+          ),
+  );
+}
+
+class ScheduleView extends ConsumerWidget {
+  const ScheduleView(this.schedule, {super.key});
+  final MetroSchedule schedule;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mock = ref.watch(mockDataProvider);
+    final scheme = context.colors;
+    final app = context.appColors;
+    final text = context.textStyles;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBanner(
+          kind: schedule.withinPeriod ? BannerKind.info : BannerKind.warning,
+          title: schedule.estimated
+              ? 'Lịch tàu ước tính · Không phải trực tiếp'
+              : mock
+              ? 'Lịch mẫu · Không phải trực tiếp'
+              : 'Lịch dự kiến · Không phải trực tiếp',
+          message: !schedule.withinPeriod
+              ? 'Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'
+              : schedule.precision == 'Headway'
+              ? 'Giãn cách là khoảng thời gian giữa các chuyến, không phải giờ tàu xuất bến chính xác.'
+              : schedule.showExact
+              ? (mock
+                    ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
+                    : 'Giờ dưới đây là lịch dự kiến, có thể lệch so với vận hành thực tế.')
+              : 'Chưa đủ dữ liệu để xác định thời gian tàu chạy.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          mock
+              ? 'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)'
+              : 'Lịch áp dụng ngày ${schedule.date} (giờ Việt Nam)',
+          style: text.bodySmall,
+        ),
+        for (final direction in schedule.directions)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                border: Border.all(color: scheme.outline),
+                borderRadius: AppRadius.card,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
-                        const Expanded(
-                          child: Text(
-                            'Chỉ đường Google Maps',
-                            style: BrandTypography.sectionTitle,
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.xs),
+                          decoration: BoxDecoration(
+                            color: app.metroLineContainer,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(AppRadius.xs),
+                            ),
+                          ),
+                          child: Icon(
+                            LucideIcons.trainFront,
+                            size: AppSizes.iconSm,
+                            color: app.metroLine,
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Đóng',
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close, size: 20),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Hướng ${direction.toward}',
+                            style: text.titleSmall,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Bản offline chỉ xem URL, không mở Google Maps.',
-                      style: BrandTypography.body,
-                    ),
-                    const SizedBox(height: 12),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Brand.canvas,
-                        border: Border.all(color: Brand.line),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: SelectableText(
-                          uri.toString(),
-                          style: BrandTypography.metadata,
+                    const Divider(height: AppSpacing.xl),
+                    if (schedule.showExact)
+                      direction.departures.isEmpty
+                          ? Text('Chưa có chuyến.', style: text.bodyMedium)
+                          : Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: [
+                                for (final t in direction.departures)
+                                  StatusChip(
+                                    label: t.substring(0, 5),
+                                    kind: StatusKind.info,
+                                  ),
+                              ],
+                            )
+                    else if (schedule.precision == 'Headway' &&
+                        schedule.withinPeriod) ...[
+                      if (direction.headways.isEmpty)
+                        Text(
+                          mock
+                              ? 'Chưa có thông tin giãn cách trong bộ mẫu này.'
+                              : 'Chưa có thông tin giãn cách.',
+                          style: text.bodyMedium,
                         ),
+                      for (final h in direction.headways)
+                        HeadwayRow(from: h.from, to: h.to, minutes: h.minutes),
+                    ] else
+                      Text(
+                        'Chưa đủ dữ liệu lịch tàu để hiển thị.',
+                        style: text.bodyMedium,
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Đóng'),
-                    ),
                   ],
                 ),
               ),
             ),
           ),
-  );
-}
-
-class ScheduleView extends StatelessWidget {
-  const ScheduleView(this.schedule, {super.key});
-  final MetroSchedule schedule;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      FeedbackBanner(
-        kind: schedule.withinPeriod
-            ? FeedbackBannerKind.info
-            : FeedbackBannerKind.warning,
-        title: schedule.estimated
-            ? 'Lịch tàu ước tính · Không phải trực tiếp'
-            : 'Lịch mẫu · Không phải trực tiếp',
-        message: !schedule.withinPeriod
-            ? 'Ngoài khoảng hiệu lực. Không sử dụng để đón tàu.'
-            : schedule.precision == 'Headway'
-            ? 'Giãn cách là khoảng thời gian giữa các chuyến, không phải giờ tàu xuất bến chính xác.'
-            : schedule.showExact
-            ? 'Giờ dưới đây thuộc bộ dữ liệu mẫu, không phải cập nhật vận hành.'
-            : 'Chưa đủ dữ liệu để xác định thời gian tàu chạy.',
-      ),
-      const SizedBox(height: 12),
-      Text(
-        'Ngày dữ liệu mẫu: ${schedule.date} (giờ Việt Nam)',
-        style: BrandTypography.metadata,
-      ),
-      for (final direction in schedule.directions)
-        Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Brand.surface,
-              border: Border.all(color: Brand.line),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            shape: const Border(),
+            collapsedShape: const Border(),
+            title: Text('Thông tin bộ dữ liệu', style: text.labelLarge),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.train_outlined,
-                        size: 20,
-                        color: Brand.navy,
+                      Text(
+                        'Độ chính xác: ${schedule.precision}',
+                        style: text.bodySmall,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Hướng ${direction.toward}',
-                          style: BrandTypography.choice.copyWith(
-                            fontSize: 14,
-                            color: Brand.navy,
-                          ),
-                        ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Hiệu lực: ${schedule.effectiveFrom} – ${schedule.effectiveTo ?? 'chưa có ngày kết thúc'}',
+                        style: text.bodySmall,
                       ),
+                      if (schedule.notice != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(schedule.notice!, style: text.bodySmall),
+                      ],
                     ],
                   ),
-                  const Divider(height: 24, color: Brand.line),
-                  if (schedule.showExact)
-                    Text(
-                      direction.departures.isEmpty
-                          ? 'Chưa có chuyến.'
-                          : direction.departures
-                                .map((t) => t.substring(0, 5))
-                                .join(' · '),
-                      style: BrandTypography.body,
-                    )
-                  else if (schedule.precision == 'Headway' &&
-                      schedule.withinPeriod) ...[
-                    if (direction.headways.isEmpty)
-                      const Text(
-                        'Chưa có thông tin giãn cách trong bộ mẫu này.',
-                        style: BrandTypography.body,
-                      ),
-                    for (final h in direction.headways)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(
-                          '${h.from.substring(0, 5)}–${h.to.substring(0, 5)}: khoảng ${h.minutes} phút/chuyến',
-                          style: BrandTypography.body.copyWith(fontSize: 14),
-                        ),
-                      ),
-                  ] else
-                    const Text(
-                      'Chưa đủ dữ liệu lịch tàu để hiển thị.',
-                      style: BrandTypography.body,
-                    ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
-      ExpansionTile(
-        backgroundColor: Brand.canvas,
-        collapsedBackgroundColor: Brand.canvas,
-        textColor: Brand.ink,
-        collapsedTextColor: Brand.ink,
-        iconColor: Brand.navy,
-        collapsedIconColor: Brand.navy,
-        tilePadding: EdgeInsets.zero,
-        title: const Text(
-          'Thông tin bộ dữ liệu',
-          style: BrandTypography.choice,
+      ],
+    );
+  }
+}
+
+/// "06:00–08:00: khoảng 8 phút/chuyến" with a clock icon.
+class HeadwayRow extends StatelessWidget {
+  const HeadwayRow({
+    super.key,
+    required this.from,
+    required this.to,
+    required this.minutes,
+  });
+  final String from;
+  final String to;
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+    child: Row(
+      children: [
+        Icon(
+          LucideIcons.clock,
+          size: AppSizes.iconSm,
+          color: context.colors.onSurfaceVariant,
         ),
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Độ chính xác: ${schedule.precision}',
-                    style: BrandTypography.metadata,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Hiệu lực: ${schedule.effectiveFrom} – ${schedule.effectiveTo ?? 'chưa có ngày kết thúc'}',
-                    style: BrandTypography.metadata,
-                  ),
-                  if (schedule.notice != null) ...[
-                    const SizedBox(height: 8),
-                    Text(schedule.notice!, style: BrandTypography.metadata),
-                  ],
-                ],
-              ),
-            ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            '${from.substring(0, 5)}–${to.substring(0, 5)}: khoảng $minutes phút/chuyến',
+            style: context.textStyles.bodyMedium,
           ),
-        ],
-      ),
-    ],
+        ),
+      ],
+    ),
   );
 }

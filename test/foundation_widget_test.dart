@@ -5,7 +5,8 @@ import 'package:localmate_ai_mobile/app/localmate_app.dart';
 import 'package:localmate_ai_mobile/app/providers.dart';
 import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/features/foundation/domain/destination.dart';
-import 'package:localmate_ai_mobile/shared/widgets/content_states.dart';
+import 'package:localmate_ai_mobile/core/theme/app_theme.dart';
+import 'package:localmate_ai_mobile/core/widgets/widgets.dart';
 
 import 'support/fake_session_store.dart';
 
@@ -54,7 +55,7 @@ void main() {
         find.text(switch (destination) {
           Destination.explore => 'Khám phá',
           Destination.metro => 'Ga Metro',
-          Destination.trips => 'Lịch trình cá nhân',
+          Destination.trips => 'Lịch trình của tôi',
           Destination.account => 'Tài khoản',
           _ => destination.heading,
         }).first,
@@ -104,16 +105,20 @@ void main() {
     var retries = 0;
     await tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.light,
         home: Scaffold(
           body: SingleChildScrollView(
             child: Column(
               children: [
-                const LoadingContent(),
-                const EmptyContent(
+                const AppSkeleton(enabled: true, child: Text('Đang tải mẫu')),
+                const AppEmptyState(
                   title: 'Chưa có dữ liệu',
                   message: 'Fixture',
                 ),
-                ErrorContent(onRetry: () => retries++),
+                AppErrorState(
+                  message: 'Không tải được.',
+                  onRetry: () => retries++,
+                ),
               ],
             ),
           ),
@@ -121,7 +126,9 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    final semantics = tester.ensureSemantics();
+    expect(find.bySemanticsLabel(RegExp('^Đang tải')), findsWidgets);
+    semantics.dispose();
     expect(find.text('Chưa có dữ liệu'), findsOneWidget);
     await tester.ensureVisible(find.text('Thử lại'));
     await tester.tap(find.text('Thử lại'));
@@ -157,7 +164,7 @@ void main() {
           }
           final bar = tester.getRect(find.byType(NavigationBar));
           for (final destination in Destination.values) {
-            final label = scale == 2
+            final label = scale == 2 || width < 360
                 ? destination.label.replaceAll(' ', '\n')
                 : destination.label;
             final bounds = tester.getRect(

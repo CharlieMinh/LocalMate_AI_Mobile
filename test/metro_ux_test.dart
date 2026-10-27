@@ -66,7 +66,7 @@ void main() {
     final action = find.widgetWithText(FilledButton, 'Xem hành trình mẫu');
     expect(tester.getRect(action).bottom, lessThan(764));
     await tap(tester, action);
-    expect(find.text('Bến Thành → Nhà hát Thành phố'), findsOneWidget);
+    expect(find.byKey(const ValueKey('metro-journey-result')), findsOneWidget);
     expect(find.textContaining('khoảng 8 phút/chuyến'), findsOneWidget);
     expect(find.text('08:00 → 08:02 (lịch mẫu)'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -78,12 +78,15 @@ void main() {
       await boot(tester);
       await tap(tester, find.text('Xem hành trình mẫu'));
       await tap(tester, find.byTooltip('Đổi ga đi và ga đến'));
-      expect(find.text('Bến Thành → Nhà hát Thành phố'), findsNothing);
+      expect(find.byKey(const ValueKey('metro-journey-result')), findsNothing);
       await tap(tester, find.text('Xem hành trình mẫu'));
       expect(find.text('Cặp ga này chưa có hành trình mẫu'), findsOneWidget);
       expect(find.textContaining('2 phút · 1 chặng'), findsNothing);
-      await tap(tester, find.text('Dùng ví dụ Bến Thành → Nhà hát Thành phố'));
-      expect(find.text('Bến Thành → Nhà hát Thành phố'), findsOneWidget);
+      await tap(tester, find.text('Dùng ví dụ Bến Thành – Nhà hát Thành phố'));
+      expect(
+        find.byKey(const ValueKey('metro-journey-result')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );

@@ -8,12 +8,19 @@ import 'package:localmate_ai_mobile/app/localmate_app.dart';
 import 'package:localmate_ai_mobile/app/providers.dart';
 import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/core/network/mock_api_client.dart';
+import 'package:localmate_ai_mobile/core/theme/app_colors.dart';
+import 'package:localmate_ai_mobile/core/theme/app_theme.dart';
+import 'package:localmate_ai_mobile/core/widgets/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
 import 'package:localmate_ai_mobile/features/discovery/application/discovery_providers.dart';
 import 'package:localmate_ai_mobile/features/discovery/data/discovery_fixtures.dart';
 import 'package:localmate_ai_mobile/features/discovery/data/discovery_repository.dart';
 import 'package:localmate_ai_mobile/features/discovery/domain/discovery_models.dart';
+import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_pages.dart';
 import 'package:localmate_ai_mobile/features/discovery/presentation/discovery_widgets.dart';
+import 'package:localmate_ai_mobile/features/planner/application/planner_form_controller.dart';
+import 'package:localmate_ai_mobile/features/planner/presentation/planner_page.dart';
 
 import 'support/fake_session_store.dart';
 import 'discovery_offline_test.dart' show loadStationFixtures, jsonReply;
@@ -37,7 +44,9 @@ void main() {
         ],
       });
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+        ProviderScope(
+          child: MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+        ),
       );
       expect(find.text('Hướng Bến Thành'), findsOneWidget);
       expect(find.text('08:00'), findsNothing);
@@ -54,41 +63,32 @@ void main() {
   }
   for (final width in [320.0, 390.0, 768.0]) {
     for (final scale in [1.0, 2.0]) {
-      testWidgets('native media width=$width scale=$scale', (tester) async {
+      testWidgets('image fallback width=$width scale=$scale', (tester) async {
         tester.view.physicalSize = Size(width, 1024);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
-        final semantics = tester.ensureSemantics();
-        for (final category in ['Culture', 'Cafe', 'Food', 'Nature', null]) {
-          for (final url in [null, '', 'https://invalid.example/image']) {
+        for (final category in ['Culture', 'Cafe', 'Food', 'CheckIn', 'X']) {
+          for (final theme in [AppTheme.light, AppTheme.dark]) {
+            final tone = placeTone(category);
             await tester.pumpWidget(
               MaterialApp(
+                theme: theme,
                 home: MediaQuery(
                   data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-                  child: Scaffold(body: PlaceMedia(url, category: category)),
+                  child: Scaffold(body: PlaceImage(tone: tone, height: 160)),
                 ),
               ),
             );
-            expect(
-              find.bySemanticsLabel('Chưa có ảnh địa điểm'),
-              findsOneWidget,
-            );
-            expect(find.text('Chưa có ảnh địa điểm'), findsOneWidget);
+            // No imageUrl: designed fallback only, never a network fetch.
             expect(find.byType(Image), findsNothing);
-            final expectedIcon = switch (category) {
-              'Culture' => Icons.museum_outlined,
-              'Cafe' => Icons.local_cafe_outlined,
-              'Food' => Icons.restaurant_outlined,
-              'Nature' => Icons.park_outlined,
-              _ => Icons.location_on_outlined,
-            };
-            expect(find.byIcon(expectedIcon), findsOneWidget);
-            expect(tester.getSize(find.byType(PlaceMedia)).height, 160);
+            expect(find.byIcon(categoryIcon(tone)), findsWidgets);
+            expect(tester.getSize(find.byType(PlaceImage)).height, 160);
             expect(tester.takeException(), isNull);
           }
         }
-        semantics.dispose();
+        expect(placeTone('Cafe'), PlaceCategoryTone.cafe);
+        expect(categoryLabel('CheckIn'), 'Check-in');
       });
     }
   }
@@ -132,8 +132,11 @@ void main() {
   }
 
   Future<void> submit(WidgetTester tester, String q) async {
-    await tester.enterText(find.byType(TextFormField), q);
-    await tapVisible(tester, find.widgetWithText(FilledButton, 'Tìm kiếm'));
+    final field = find.byKey(const ValueKey('explore-search'));
+    await tester.ensureVisible(field);
+    await tester.enterText(field, q);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
   }
 
   testWidgets(
@@ -142,13 +145,18 @@ void main() {
       final container = await boot(tester);
       expect(container.read(authProvider).authenticated, isFalse);
       expect(find.text('Điểm dừng gợi ý'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Lịch trình gợi ý'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Lịch trình gợi ý'), findsOneWidget);
       await tapVisible(tester, find.text('Chợ Bến Thành'));
-      expect(find.text('Chi tiết địa điểm'), findsOneWidget);
+      expect(find.text('Thông tin tham khảo'), findsOneWidget);
       expect(find.text('Chưa có điểm đánh giá.'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Hôm nay mình đi đâu?'), findsOneWidget);
+      expect(find.byType(DiscoveryHomePage), findsOneWidget);
     },
   );
   testWidgets(
@@ -163,7 +171,7 @@ void main() {
       expect(find.text('Địa điểm'), findsOneWidget);
       expect(find.text('Lịch trình mẫu'), findsOneWidget);
       expect(find.text('Chợ Bến Thành'), findsOneWidget);
-      await tapVisible(tester, find.text('Xóa tìm kiếm'));
+      await tapVisible(tester, find.byTooltip('Xóa tìm kiếm'));
       expect(find.text('Quanh các ga trung tâm'), findsOneWidget);
     },
   );
@@ -193,11 +201,14 @@ void main() {
     (tester) async {
       await boot(tester, route: '/metro');
       await tapVisible(tester, find.text('Xem hành trình mẫu'));
-      expect(find.text('Bến Thành → Nhà hát Thành phố'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('metro-journey-result')),
+        findsOneWidget,
+      );
       expect(find.textContaining('khoảng 8 phút/chuyến'), findsOneWidget);
       expect(find.text('08:00 → 08:02 (lịch mẫu)'), findsNothing);
       await tapVisible(tester, find.text('Các ga'));
-      await tapVisible(tester, find.text('Ba Son'));
+      await tapVisible(tester, find.widgetWithText(ListTile, 'Ba Son'));
       expect(find.text('Ga Ba Son'), findsOneWidget);
       expect(find.text('Hướng Bến Thành'), findsOneWidget);
       expect(find.text('Hướng Bến xe Suối Tiên'), findsOneWidget);
@@ -221,8 +232,7 @@ void main() {
         },
       );
       await boot(tester, client: probe, route: '/places/unknown');
-      expect(find.byIcon(Icons.local_cafe_outlined), findsOneWidget);
-      expect(find.text('Chưa có ảnh địa điểm'), findsOneWidget);
+      expect(find.byIcon(LucideIcons.coffee), findsWidgets);
       expect(find.byType(Image), findsNothing);
       expect(find.text('Chưa có mô tả.'), findsOneWidget);
       expect(find.text('Chưa có điểm đánh giá.'), findsOneWidget);
@@ -257,7 +267,7 @@ void main() {
         findsOneWidget,
       );
       await tapVisible(tester, find.text('Góc cà phê minh họa'));
-      expect(find.text('Chi tiết địa điểm'), findsOneWidget);
+      expect(find.text('Thông tin tham khảo'), findsOneWidget);
     },
   );
   testWidgets('loading, retry and unavailable are not empty success', (
@@ -277,7 +287,7 @@ void main() {
     container.read(routerProvider).go('/places/probe');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(SkeletonBlock), findsWidgets);
     gate.complete(jsonReply({}, status: 404));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
@@ -298,14 +308,14 @@ void main() {
         'GET /search': (_) => jsonReply({
           'code': 'invalid_search_query',
           'errors': {
-            'Q': ['Server Q error'],
+            'Q': ['Từ khoá từ máy chủ chưa hợp lệ'],
           },
         }, status: 400),
       },
     );
     await boot(tester, client: probe, route: '/explore');
     await submit(tester, 'valid');
-    expect(find.text('Server Q error'), findsOneWidget);
+    expect(find.text('Từ khoá từ máy chủ chưa hợp lệ'), findsOneWidget);
     expect(find.text('Thử lại'), findsOneWidget);
   });
   testWidgets(
@@ -320,11 +330,12 @@ void main() {
         },
       );
       final container = await boot(tester, client: probe, route: '/explore');
-      await tester.enterText(find.byType(TextFormField), 'old');
-      await tester.tap(find.text('Tìm kiếm'));
+      final field = find.byKey(const ValueKey('explore-search'));
+      await tester.enterText(field, 'old');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pump();
-      await tester.enterText(find.byType(TextFormField), 'new');
-      await tester.tap(find.text('Tìm kiếm'));
+      await tester.enterText(field, 'new');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pump();
       newer.complete(
         jsonReply({
@@ -344,6 +355,23 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('"plan around this station" starts the planner there', (
+    tester,
+  ) async {
+    final container = await boot(
+      tester,
+      route: '/places/10000000-0000-0000-0000-000000000002',
+    );
+    await tapVisible(tester, find.byKey(const ValueKey('place-plan-here')));
+    expect(container.read(plannerFormProvider).origin, 2);
+    expect(find.text(plannerStationName(2)), findsWidgets);
+    // A fresh planner with a bad value keeps the default.
+    container.read(routerProvider).go('/home');
+    await tester.pumpAndSettle();
+    container.read(routerProvider).go('/planner?station=99');
+    await tester.pumpAndSettle();
+    expect(container.read(plannerFormProvider).origin, 1);
+  });
   testWidgets('unknown precision never renders exact trips', (tester) async {
     final schedule = MetroSchedule.fromJson({
       ...scheduleMetadata,
@@ -357,7 +385,9 @@ void main() {
       ],
     });
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+      ProviderScope(
+        child: MaterialApp(home: Scaffold(body: ScheduleView(schedule))),
+      ),
     );
     expect(find.text('08:00'), findsNothing);
     expect(find.text('Chưa đủ dữ liệu lịch tàu để hiển thị.'), findsOneWidget);
@@ -384,7 +414,7 @@ void main() {
           container.read(routerProvider).go(path);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: path);
-          for (final element in find.byType(PlaceMedia).evaluate()) {
+          for (final element in find.byType(PlaceImage).evaluate()) {
             final box = element.renderObject as RenderBox;
             expect(box.size.width, lessThanOrEqualTo(width));
           }

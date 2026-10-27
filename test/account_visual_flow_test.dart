@@ -46,7 +46,7 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(action);
           await tester.pumpAndSettle();
-          expect(find.byType(BackButton), findsOneWidget);
+          expect(find.byTooltip('Quay lại'), findsOneWidget);
           expect(find.byType(DraggableScrollableSheet), findsNothing);
           if (index == 1) {
             expect(find.text('Chưa tải giá'), findsNWidgets(2));

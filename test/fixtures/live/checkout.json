@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/502","title":"The payment gateway is currently unavailable.","status":502,"instance":"/api/subscription/checkout","code":"payment_gateway_unavailable"}

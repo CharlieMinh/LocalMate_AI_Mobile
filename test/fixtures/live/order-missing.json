@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/404","title":"Payment order was not found.","status":404,"instance":"/api/subscription/orders/00000000-0000-0000-0000-000000000001","code":"payment_order_not_found"}

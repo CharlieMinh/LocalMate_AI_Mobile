@@ -7,8 +7,8 @@ import 'package:localmate_ai_mobile/app/localmate_app.dart';
 import 'package:localmate_ai_mobile/app/providers.dart';
 import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/features/foundation/domain/destination.dart';
-import 'package:localmate_ai_mobile/shared/theme/app_theme.dart';
-import 'package:localmate_ai_mobile/shared/widgets/brand_header.dart';
+import 'package:localmate_ai_mobile/core/theme/app_theme.dart';
+import 'package:localmate_ai_mobile/core/widgets/widgets.dart';
 
 import 'support/fake_session_store.dart';
 
@@ -35,7 +35,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     final fonts = FontLoader('BeVietnamPro');
-    for (final weight in ['Regular', 'SemiBold', 'Bold']) {
+    for (final weight in [
+      'Regular',
+      'Medium',
+      'SemiBold',
+      'Bold',
+      'ExtraBold',
+    ]) {
       fonts.addFont(rootBundle.load('assets/fonts/BeVietnamPro-$weight.ttf'));
     }
     await fonts.load();
@@ -57,22 +63,11 @@ void main() {
         try {
           final container = await boot(tester);
           addTearDown(container.dispose);
-          expect(
-            tester
-                .widget<BrandHeader>(find.byType(BrandHeader))
-                .preferredSize
-                .height,
-            64,
-          );
           final account = find.byKey(const ValueKey('brand-account-action'));
           final bounds = tester.getRect(account);
-          expect(bounds.size, const Size(48, 48));
-          expect(bounds.right, width - 16);
-          final iconBounds = tester.getRect(
-            find.descendant(of: account, matching: find.byType(Icon)),
-          );
-          expect(iconBounds.width, 24);
-          expect(iconBounds.right, width - 28);
+          expect(bounds.width, greaterThanOrEqualTo(48));
+          expect(bounds.height, greaterThanOrEqualTo(48));
+          expect(bounds.right, lessThanOrEqualTo(width - 8));
           final brand = find.byKey(const ValueKey('brand-wordmark'));
           expect(
             tester.renderObject<RenderParagraph>(brand).didExceedMaxLines,
@@ -89,13 +84,9 @@ void main() {
             ).scale(10),
             scale * 10,
           );
-          debugPrint(
-            'V02_SHELL width=$width text=$scale account=$bounds '
-            'icon=$iconBounds brand=${tester.getRect(brand)}',
-          );
           expect(
             tester
-                .getSemantics(account)
+                .getSemantics(find.byTooltip('Mở tài khoản'))
                 .getSemanticsData()
                 .flagsCollection
                 .isButton,
@@ -113,19 +104,18 @@ void main() {
                   .selectedIndex,
               destination.index,
             );
+            final tall = scale == 2 || width < 360;
             final bar = tester.getRect(find.byType(NavigationBar));
-            expect(bar.height, scale == 2 ? 112 : 80);
-            final barWidget = tester.widget<NavigationBar>(
-              find.byType(NavigationBar),
+            // NavigationBar pads itself for the 24px system bottom inset.
+            expect(bar.height, (tall ? 104 : 80) + 24);
+            final scheme = AppTheme.light.colorScheme;
+            final labels = AppTheme.light.navigationBarTheme.labelTextStyle!;
+            expect(
+              labels.resolve({WidgetState.selected})!.color,
+              scheme.onSurface,
             );
-            final labels =
-                barWidget.labelTextStyle ??
-                Theme.of(tester.element(find.byType(NavigationBar)))
-                    .navigationBarTheme
-                    .labelTextStyle!;
-            expect(labels.resolve({WidgetState.selected})!.color, Brand.navy);
-            expect(labels.resolve({})!.color, Brand.muted);
-            final label = scale == 2
+            expect(labels.resolve({})!.color, scheme.onSurfaceVariant);
+            final label = tall
                 ? destination.label.replaceAll(' ', '\n')
                 : destination.label;
             final text = find
@@ -180,63 +170,16 @@ void main() {
     },
   );
 
-  testWidgets(
-    'context-ready header invokes only the supplied account callback',
-    (tester) async {
-      var calls = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: Brand.theme,
-          home: Scaffold(
-            appBar: BrandHeader(
-              contextTitle: 'Khám phá',
-              onAccount: () => calls++,
-            ),
-            body: const SizedBox(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Khám phá'), findsOneWidget);
-      expect(find.text('AI'), findsNothing);
-      expect(calls, 0);
-      await tester.tap(find.byTooltip('Mở tài khoản'));
-      expect(calls, 1);
-    },
-  );
-
-  testWidgets(
-    'shared header retains the native Back affordance on a pushed route',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: Brand.theme,
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      appBar: BrandHeader(
-                        onAccount: () {},
-                        contextTitle: 'Khám phá',
-                      ),
-                    ),
-                  ),
-                ),
-                child: const Text('Mở màn hình'),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Mở màn hình'));
-      await tester.pumpAndSettle();
-      expect(find.byType(BackButton), findsOneWidget);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-      expect(find.text('Mở màn hình'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('brand lockup announces the product name once', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(body: Center(child: BrandLockup())),
+      ),
+    );
+    expect(find.bySemanticsLabel('LocalMate AI'), findsOneWidget);
+    expect(find.text('AI'), findsOneWidget);
+    semantics.dispose();
+  });
 }

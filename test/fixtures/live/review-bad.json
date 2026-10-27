@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/400","title":"Place review data is invalid.","status":400,"instance":"/api/trips/items/a89ebe0b-b57f-4945-9383-e80fb234378a/review","errors":{"Rating":["Rating must be between 1 and 5."],"QuickTags":["One or more quick tags are invalid."]},"code":"invalid_place_review"}

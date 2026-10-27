@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Live builds (API_BASE_URL) call the backend over HTTPS; cleartext
+         stays disabled. Mock-only builds open no sockets regardless. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="LocalMate AI"
         android:allowBackup="false"

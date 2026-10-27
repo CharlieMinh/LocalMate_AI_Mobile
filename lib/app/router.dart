@@ -1,17 +1,26 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../dev/component_gallery_screen.dart';
 import '../features/foundation/domain/destination.dart';
+import 'app_shell.dart';
+import '../features/planner/presentation/finalized_trip_view.dart';
 import '../features/planner/presentation/planner_page.dart';
-import '../shared/widgets/content_states.dart';
-import '../shared/widgets/brand_header.dart';
-import '../shared/theme/layout_tokens.dart';
+import '../core/widgets/widgets.dart';
+
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/auth/presentation/account_pages.dart';
 import '../features/auth/presentation/auth_pages.dart';
 import '../features/discovery/presentation/discovery_pages.dart';
 import '../features/discovery/presentation/metro_pages.dart';
+import '../features/payments/presentation/payment_pages.dart';
+import '../features/trips/presentation/trips_pages.dart';
+import 'providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRouterRefresh();
@@ -21,14 +30,45 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final authenticated = ref.read(authProvider).authenticated;
-      if (state.uri.path == '/private' && !authenticated) return '/login';
+      if ((state.uri.path == '/private' ||
+              state.uri.path == '/notifications') &&
+          !authenticated) {
+        return '/login';
+      }
       if (state.uri.path == '/login' && authenticated) return '/private';
       return null;
     },
     routes: [
       GoRoute(path: '/', redirect: (_, _) => '/home'),
+      if (kDebugMode)
+        GoRoute(
+          path: '/dev/gallery',
+          builder: (_, _) => const ComponentGalleryScreen(),
+        ),
+      if (kDebugMode)
+        GoRoute(
+          path: '/dev/finalized',
+          builder: (_, _) => const FinalizedTripPreviewScreen(),
+        ),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
-      GoRoute(path: '/planner', builder: (_, _) => const PlannerPage()),
+      GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, _) => const NotificationsPage(),
+      ),
+      GoRoute(
+        path: '/planner',
+        // Optional `?station=<order>` preselects the departure station.
+        builder: (_, state) => PlannerPage(
+          initialStation: int.tryParse(
+            state.uri.queryParameters['station'] ?? '',
+          ),
+        ),
+      ),
       GoRoute(
         path: '/planner/preview/:key',
         builder: (_, state) =>
@@ -37,8 +77,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/private',
         builder: (_, _) => Scaffold(
-          appBar: AppBar(title: const Text('Phiên tài khoản mẫu')),
-          body: const SafeArea(child: AuthAccountPage()),
+          appBar: AppTopBar(
+            title: ref.read(configProvider).mockOnly
+                ? 'Phiên tài khoản mẫu'
+                : 'Tài khoản của bạn',
+          ),
+          body: const SafeArea(
+            top: false,
+            child: AuthAccountPage(showHeader: false),
+          ),
         ),
       ),
       ShellRoute(
@@ -53,10 +100,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 Destination.home => const DiscoveryHomePage(),
                 Destination.explore => const ExplorePage(),
                 Destination.metro => const MetroPage(),
-                Destination.trips => const PlannerEntryPage(),
+                Destination.trips => const TripsTab(),
               },
             ),
         ],
+      ),
+      GoRoute(
+        path: '/trips/:id',
+        builder: (_, state) => TripDetailPage(state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/places/:id',
@@ -76,30 +127,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/payment-return',
         builder: (context, state) {
           final intent = PaymentReturnIntent.parseInternal(state.uri);
-          return Scaffold(
-            appBar: AppBar(title: const Text('Quay lại ứng dụng')),
-            body: SafeArea(
-              child: SingleChildScrollView(
-                child: EmptyContent(
-                  title: intent == null
-                      ? 'Liên kết chưa hợp lệ'
-                      : 'Chưa xác minh thanh toán',
-                  message: 'Bản M1 không tra cứu đơn hàng và không xác nhận quyền sử dụng.',
-                ),
-              ),
-            ),
+          if (intent != null && !ref.read(configProvider).mockOnly) {
+            return PaymentStatusPage(
+              intent: intent,
+              checkoutUrl: state.extra is Uri ? state.extra! as Uri : null,
+            );
+          }
+          return _StatusPage(
+            title: 'Quay lại ứng dụng',
+            illustration: intent == null
+                ? IllustrationKind.error
+                : IllustrationKind.offline,
+            heading: intent == null
+                ? 'Liên kết chưa hợp lệ'
+                : 'Chưa xác minh thanh toán',
+            message: intent == null
+                ? 'Không đọc được mã đơn hàng từ liên kết này.'
+                : 'Bản offline không tra cứu đơn hàng và không xác nhận quyền sử dụng.',
           );
         },
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      appBar: AppBar(title: const Text('LocalMate AI')),
-      body: SafeArea(
-        child: ErrorContent(
-          message: 'Màn hình này chưa khả dụng.',
-          onRetry: () => context.go('/home'),
-        ),
-      ),
+    errorBuilder: (context, state) => const _StatusPage(
+      title: 'LocalMate AI',
+      illustration: IllustrationKind.emptySearch,
+      heading: 'Không tìm thấy màn hình',
+      message: 'Màn hình này chưa khả dụng.',
     ),
   );
   ref.onDispose(router.dispose);
@@ -111,81 +164,38 @@ class _AuthRouterRefresh extends ChangeNotifier {
   void changed() => notifyListeners();
 }
 
-class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.path, required this.child});
-  final String path;
-  final Widget child;
+/// Full-page status (payment return, unknown route) with a way home.
+class _StatusPage extends StatelessWidget {
+  const _StatusPage({
+    required this.title,
+    required this.illustration,
+    required this.heading,
+    required this.message,
+  });
+  final String title;
+  final IllustrationKind illustration;
+  final String heading;
+  final String message;
+
   @override
-  Widget build(BuildContext context) {
-    final textScaler = MediaQuery.textScalerOf(context);
-    final largeText = LayoutTokens.usesLargeText(textScaler);
-    final index = Destination.values.indexWhere(
-      (destination) => destination.path == path,
-    );
-    return PopScope(
-      canPop: index == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && index != 0) context.go('/home');
-      },
-      child: Scaffold(
-        appBar: index <= 0
-            ? BrandHeader(onAccount: () => context.go('/account'))
-            : AppBar(
-                title: Text(switch (Destination.values[index]) {
-                  Destination.metro => 'Ga Metro',
-                  Destination.trips => 'Lịch trình cá nhân',
-                  _ => Destination.values[index].label,
-                }),
-                actions: [
-                  if (path == '/trips' || path == '/explore')
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: IconButton.filledTonal(
-                        tooltip: 'Tạo lịch trình mẫu',
-                        onPressed: () => context.push('/planner'),
-                        icon: Icon(
-                          path == '/trips'
-                              ? Icons.add
-                              : Icons.auto_awesome_outlined,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-        body: SafeArea(top: false, bottom: false, child: child),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: NavigationBar(
-            height: LayoutTokens.navigationHeightFor(textScaler),
-            labelTextStyle: largeText
-                ? WidgetStateProperty.resolveWith(
-                    (states) =>
-                        (Theme.of(context).navigationBarTheme.labelTextStyle
-                                    ?.resolve(states) ??
-                                const TextStyle())
-                            .copyWith(
-                              fontSize: 11,
-                              height: 1.2,
-                              letterSpacing: 0,
-                            ),
-                  )
-                : null,
-            selectedIndex: index < 0 ? 0 : index,
-            onDestinationSelected: (next) =>
-                context.go(Destination.values[next].path),
-            destinations: [
-              for (final destination in Destination.values)
-                NavigationDestination(
-                  icon: Icon(destination.icon),
-                  label: largeText
-                      ? destination.label.replaceAll(' ', '\n')
-                      : destination.label,
-                  tooltip: destination.label,
-                ),
-            ],
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppTopBar(title: title),
+    body: SafeArea(
+      top: false,
+      child: Center(
+        child: SingleChildScrollView(
+          child: AppStateView(
+            illustration: illustration,
+            title: heading,
+            message: message,
+            primaryAction: AppButton(
+              label: 'Về trang chủ',
+              icon: LucideIcons.house,
+              onPressed: () => context.go('/home'),
+            ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

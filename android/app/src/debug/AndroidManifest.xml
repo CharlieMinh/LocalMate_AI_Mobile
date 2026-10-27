@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Debug only: plain HTTP to a backend on this machine (emulator
+         10.0.2.2, localhost), matching AppConfig's development hosts. -->
+    <application android:networkSecurityConfig="@xml/network_security_config"/>
 </manifest>

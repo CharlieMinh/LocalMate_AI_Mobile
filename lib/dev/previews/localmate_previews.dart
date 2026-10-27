@@ -9,7 +9,7 @@ import '../../app/localmate_app.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../core/session/session_store.dart';
-import '../../shared/theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 import 'android_device_frame.dart';
 
 const localMatePreviewSize = Size(440, 720);
@@ -83,9 +83,9 @@ class LocalMateScreenPreview extends StatelessWidget {
     screenSize: screenSize,
     textScale: textScale,
     child: Theme(
-      data: Brand.theme,
+      data: AppTheme.light,
       child: Material(
-        color: Brand.canvas,
+        color: AppTheme.light.scaffoldBackgroundColor,
         child: ProviderScope(
           overrides: [
             sessionStoreProvider.overrideWith((ref) => PreviewSessionStore()),

@@ -1,0 +1,1 @@
+{"type":"https://httpstatuses.com/401","title":"Google authentication failed.","status":401,"detail":"The Google ID token is invalid.","instance":"/api/auth/google","code":"invalid_google_token"}

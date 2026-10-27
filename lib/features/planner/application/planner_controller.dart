@@ -3,12 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/network/api_failure.dart';
+import '../../../core/network/api_messages.dart';
+import '../../trips/application/trips_providers.dart';
+import '../data/api_planner_repository.dart';
 import '../../../core/session/session_scope.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/offline_planner_repository.dart';
 import '../domain/planner_criteria.dart';
 
+/// [outcomeUnknown]: the generate request may have reached the server
+/// (timeout, lost reply), so a draft may already be saved.
 enum PlannerPhase { idle, processing, ready, error, outcomeUnknown }
+
+/// Failures where the server may have saved a draft anyway.
+bool _ambiguousOutcome(ApiFailure failure) =>
+    failure.kind == FailureKind.timeout ||
+    (failure.kind == FailureKind.unavailable && failure.status == null);
 
 class PlannerPreviewSequence {
   int value = 0;
@@ -38,7 +48,9 @@ final plannerNowProvider = Provider<DateTime Function()>(
       () => DateTime.now().toUtc(),
 );
 final plannerRepositoryProvider = Provider<PlannerRepository>(
-  (ref) => const OfflinePlannerRepository(),
+  (ref) => ref.watch(configProvider).mockOnly
+      ? const OfflinePlannerRepository()
+      : ApiPlannerRepository(ref.watch(tripsRepositoryProvider)),
 );
 final plannerTagsProvider = FutureProvider.autoDispose<List<PlannerTag>>((ref) {
   final token = CancelToken();
@@ -110,6 +122,8 @@ class PlannerController extends Notifier<PlannerState> {
     final lease = owner.lease;
     _cancel = CancelToken();
     final token = _cancel!;
+    // Read before the await: the controller may be disposed meanwhile.
+    final live = !ref.read(configProvider).mockOnly;
     // Set synchronously before the first await; never automatically retry.
     state = const PlannerState(phase: PlannerPhase.processing);
     try {
@@ -121,11 +135,50 @@ class PlannerController extends Notifier<PlannerState> {
             'offline-preview:${++ref.read(plannerPreviewSequenceProvider).value}',
             token,
           );
+      // A live draft is now saved (and counted against the monthly quota)
+      // even if this result is discarded below.
+      if (preview.tripId != null && _alive) {
+        ref
+          ..invalidate(myTripsProvider)
+          ..invalidate(subscriptionProvider);
+      }
       if (!_current(operation, owner, lease) || token.isCancelled) return null;
       state = PlannerState(phase: PlannerPhase.ready, preview: preview);
       return preview;
-    } catch (_) {
+    } catch (error) {
+      final unknown = error is ApiFailure && live && _ambiguousOutcome(error);
+      // The request may have created a draft and used a generation.
+      if (unknown && _alive) {
+        ref
+          ..invalidate(myTripsProvider)
+          ..invalidate(subscriptionProvider);
+      }
       if (!_current(operation, owner, lease) || token.isCancelled) return null;
+      if (unknown) {
+        state = PlannerState(
+          phase: PlannerPhase.outcomeUnknown,
+          failure: error,
+          message:
+              'Máy chủ phản hồi quá lâu nên chưa rõ lịch trình đã được tạo hay chưa. '
+              'Hãy xem Lịch trình của tôi trước khi tạo lại, để tránh tạo trùng và tốn thêm lượt.',
+        );
+        return null;
+      }
+      if (error is ApiFailure && live) {
+        state = PlannerState(
+          phase: PlannerPhase.error,
+          failure: error,
+          errors: {
+            for (final e in error.fields.entries)
+              if (e.value.isNotEmpty) e.key: e.value.first,
+          },
+          message: apiErrorMessage(
+            error,
+            fallback: 'Chưa tạo được lịch trình. Bạn có thể thử lại.',
+          ),
+        );
+        return null;
+      }
       state = const PlannerState(
         phase: PlannerPhase.error,
         failure: ApiFailure(FailureKind.unavailable),
