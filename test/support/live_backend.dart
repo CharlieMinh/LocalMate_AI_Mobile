@@ -69,8 +69,9 @@ class LiveBackend {
   /// When set, `parse-request` waits for it (to dismiss the sheet meanwhile).
   Completer<void>? parseGate;
 
-  /// A signed-in user with no saved trips.
+  /// A signed-in user with no saved trips (until one is generated).
   bool noTrips = false;
+  int subscriptionReads = 0;
   bool notificationRead = false;
 
   /// Two notification pages (page 2 is an older, contract-shaped item).
@@ -227,7 +228,10 @@ class LiveBackend {
         reply(liveJson('place')),
     'GET /metro/stations/1/departures': (_) => reply(liveJson('departures-1')),
     'GET /subscription/plans': (_) => reply(liveJson('plans')),
-    'GET /subscription/me': (_) => reply(liveJson('subscription-me')),
+    'GET /subscription/me': (_) {
+      subscriptionReads++;
+      return reply(liveJson('subscription-me'));
+    },
     'GET /trips/my-trips': (_) => reply(
       noTrips
           ? '[]'
@@ -401,6 +405,7 @@ class LiveBackend {
     },
     'POST /trips/generate': (_) {
       calls.add('generate');
+      if (!generateQuotaExceeded) noTrips = false;
       return generateQuotaExceeded
           ? reply(
               jsonEncode({

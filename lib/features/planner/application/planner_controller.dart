@@ -126,6 +126,13 @@ class PlannerController extends Notifier<PlannerState> {
             'offline-preview:${++ref.read(plannerPreviewSequenceProvider).value}',
             token,
           );
+      // A live draft is now saved (and counted against the monthly quota)
+      // even if this result is discarded below.
+      if (preview.tripId != null && _alive) {
+        ref
+          ..invalidate(myTripsProvider)
+          ..invalidate(subscriptionProvider);
+      }
       if (!_current(operation, owner, lease) || token.isCancelled) return null;
       state = PlannerState(phase: PlannerPhase.ready, preview: preview);
       return preview;

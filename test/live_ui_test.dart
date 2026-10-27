@@ -9,6 +9,7 @@ import 'package:localmate_ai_mobile/app/router.dart';
 import 'package:localmate_ai_mobile/features/auth/application/auth_controller.dart';
 import 'package:localmate_ai_mobile/features/planner/application/planner_form_controller.dart';
 import 'package:localmate_ai_mobile/features/planner/domain/planner_criteria.dart';
+import 'package:localmate_ai_mobile/features/trips/application/trips_providers.dart';
 
 import 'support/live_backend.dart';
 
@@ -738,4 +739,32 @@ void main() {
       },
     );
   }
+
+  testWidgets('a generated draft shows up when going back to Trips', (
+    tester,
+  ) async {
+    backend.noTrips = true;
+    final container = await boot(tester, route: '/trips', signIn: true);
+    // Keep the plan usage alive, as the Account tab would.
+    final listener = container.listen(subscriptionProvider, (_, _) {});
+    addTearDown(listener.close);
+    await tester.pumpAndSettle();
+    final readsBefore = backend.subscriptionReads;
+    expect(find.text('Một hành trình đang chờ bạn'), findsOneWidget);
+    await tap(tester, find.widgetWithText(FilledButton, 'Tạo lịch trình'));
+    for (var i = 0; i < 3; i++) {
+      await tap(tester, find.widgetWithText(FilledButton, 'Tiếp tục'));
+    }
+    await tap(tester, find.widgetWithText(FilledButton, 'Tạo lịch trình'));
+    expect(find.text('Lịch trình nháp'), findsOneWidget);
+    // Close the draft, then the planner (its back button steps the wizard).
+    final router = container.read(routerProvider);
+    router.pop();
+    await tester.pumpAndSettle();
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Quanh ga Bến Thành · 4 giờ'), findsOneWidget);
+    expect(backend.subscriptionReads, greaterThan(readsBefore));
+    await finish(tester, container);
+  });
 }
