@@ -20,6 +20,7 @@ class AppButton extends StatelessWidget {
     this.expand = false,
     this.compact = false,
     this.haptic = false,
+    this.buttonKey,
   });
 
   const AppButton.secondary({
@@ -32,6 +33,7 @@ class AppButton extends StatelessWidget {
     this.expand = false,
     this.compact = false,
     this.haptic = false,
+    this.buttonKey,
   }) : variant = AppButtonVariant.secondary;
 
   const AppButton.tonal({
@@ -44,6 +46,7 @@ class AppButton extends StatelessWidget {
     this.expand = false,
     this.compact = false,
     this.haptic = false,
+    this.buttonKey,
   }) : variant = AppButtonVariant.tonal;
 
   const AppButton.ghost({
@@ -56,6 +59,7 @@ class AppButton extends StatelessWidget {
     this.expand = false,
     this.compact = false,
     this.haptic = false,
+    this.buttonKey,
   }) : variant = AppButtonVariant.ghost;
 
   final String label;
@@ -69,6 +73,9 @@ class AppButton extends StatelessWidget {
 
   /// Light haptic on press; use for commit-type actions (create, finalize).
   final bool haptic;
+
+  /// Key placed on the inner Material button (tests target the button).
+  final Key? buttonKey;
 
   @override
   Widget build(BuildContext context) {
@@ -109,16 +116,19 @@ class AppButton extends StatelessWidget {
 
     final Widget button = switch (variant) {
       AppButtonVariant.primary => FilledButton(
+        key: buttonKey,
         onPressed: callback,
         style: sized(null),
         child: content,
       ),
       AppButtonVariant.secondary => OutlinedButton(
+        key: buttonKey,
         onPressed: callback,
         style: sized(null),
         child: content,
       ),
       AppButtonVariant.tonal => FilledButton(
+        key: buttonKey,
         onPressed: callback,
         style: sized(
           ButtonStyle(
@@ -139,11 +149,13 @@ class AppButton extends StatelessWidget {
         child: content,
       ),
       AppButtonVariant.ghost => TextButton(
+        key: buttonKey,
         onPressed: callback,
         style: sized(null),
         child: content,
       ),
       AppButtonVariant.danger => FilledButton(
+        key: buttonKey,
         onPressed: callback,
         style: sized(
           ButtonStyle(

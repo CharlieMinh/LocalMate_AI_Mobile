@@ -213,6 +213,37 @@ void main() {
       await scrollDown();
       await shot('stations-lower');
 
+      router.go('/account');
+      await shot('account');
+      await scrollDown();
+      await shot('account-lower');
+      await tapIt(
+        find.byKey(const ValueKey('account-section-Sở thích của bạn')),
+      );
+      await shot('personalize');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tapIt(
+        find.byKey(const ValueKey('account-section-Gói & quyền sử dụng')),
+      );
+      await shot('plans');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tapIt(find.text('Giao diện'));
+      await shot('appearance-sheet');
+      await tapIt(find.byTooltip('Đóng'));
+
+      router.go('/login');
+      await shot('login');
+      await scrollDown();
+      await shot('login-lower');
+      router.go(
+        '/payment-return?orderId=11111111-1111-1111-1111-111111111111&flow=single',
+      );
+      await shot('payment-return');
+      router.go('/khong-ton-tai');
+      await shot('not-found');
+
       await tester.pumpWidget(const SizedBox());
     });
   }

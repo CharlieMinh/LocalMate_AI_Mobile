@@ -26,6 +26,8 @@ class AppTextField extends StatefulWidget {
     this.maxLines = 1,
     this.maxLength,
     this.fieldKey,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
   });
 
   final String label;
@@ -47,6 +49,8 @@ class AppTextField extends StatefulWidget {
 
   /// Key placed on the inner TextFormField (tests target the input itself).
   final Key? fieldKey;
+  final bool autocorrect;
+  final bool enableSuggestions;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -71,6 +75,8 @@ class _AppTextFieldState extends State<AppTextField> {
           controller: widget.controller,
           enabled: widget.enabled,
           obscureText: _hidden,
+          autocorrect: widget.autocorrect,
+          enableSuggestions: widget.enableSuggestions,
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
           autofillHints: widget.autofillHints,

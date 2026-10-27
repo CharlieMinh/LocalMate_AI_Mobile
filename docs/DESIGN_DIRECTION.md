@@ -138,7 +138,11 @@ Lý do, xét theo người dùng là khách du lịch đi Metro số 1 TP.HCM:
 | 24 | Sheet "Chốt lịch trình?" dẫn tới màn Đã chốt | Ở bản mock, sheet giải thích "Chưa khả dụng ở bản offline", nút xác nhận bị vô hiệu. Màn Đã chốt đã có giao diện (`FinalizedTripView`), xem qua route debug `/dev/finalized`, nối API ở Giai đoạn 4 | Không tạo trạng thái thành công giả (quy tắc handoff) |
 | 25 | Lịch trình nháp có "Xem địa điểm / Đổi điểm" từng điểm dừng | Chưa hiện ở bản mock vì điểm dừng mẫu không có `placeId`; component đã hỗ trợ `actions` | Không hiển thị hành động không có dữ liệu thật |
 | 26 | Nút "Tạo lịch trình từ ga này" (chi tiết ga) điền sẵn ga | Nút chung "Tạo lịch trình mẫu" (chưa điền sẵn ga) | Điền sẵn cần thay đổi luồng điều hướng planner; để Giai đoạn 4 |
-| 21 | Không có dark mode | Theme sáng/tối đầy đủ; **mặc định vẫn là sáng** cho tới khi mọi màn đã chuyển sang design system mới, rồi mới đổi sang theo hệ thống | Các màn chưa redesign còn hardcode màu sáng, bật tối sớm sẽ vỡ giao diện |
+| 21 | Không có dark mode | Theme sáng/tối đầy đủ, **mặc định theo hệ thống** (bật sau khi mọi màn đã chuyển sang design system); đổi tại Tài khoản › Giao diện (lưu trong phiên) | Yêu cầu dự án; dùng buổi tối ngoài trời |
+| 27 | Tài khoản: 2 ô thống kê hiện "—" | Ô thống kê có icon + "Chưa đồng bộ"; thêm mục **Giao diện** (Sáng / Tối / Theo hệ thống) | Không hiển thị số giả; dark mode cần nơi chọn |
+| 28 | Đăng nhập có "Tiếp tục bằng tài khoản mẫu" + "Trải nghiệm nhanh (Demo)" | "Đăng nhập mẫu" + "Điền tài khoản mẫu"; nút Google hiển thị nhưng vô hiệu kèm lý do | Backend có `/auth/demo` và Google; nối ở Giai đoạn 4 |
+| 29 | Lịch trình của tôi (trống) | Trạng thái rỗng minh họa + thẻ "Cách hoạt động" 3 bước | Chưa có `GET /api/trips/my-trips` ở bản mock; danh sách thật ở Giai đoạn 4 |
+| 30 | Gói: dòng giá "—" | Card gói với "Chưa tải giá", không có nút mua | Không bịa giá; PayOS ở Giai đoạn 4 |
 
 ---
 

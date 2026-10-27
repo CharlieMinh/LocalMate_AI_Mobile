@@ -58,6 +58,11 @@ class PlannerEntryPage extends StatelessWidget {
                   actionIcon: LucideIcons.sparkles,
                   onAction: () => context.push('/planner'),
                 ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+                  child: _HowItWorks(),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.xl,
@@ -76,6 +81,90 @@ class PlannerEntryPage extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Three-step explainer on the empty Trips tab: create, review, finalize.
+class _HowItWorks extends StatelessWidget {
+  const _HowItWorks();
+
+  static const _steps = [
+    (
+      LucideIcons.trainFront,
+      'Chọn ga & thời gian',
+      'Bắt đầu từ một ga tuyến số 1.',
+    ),
+    (
+      LucideIcons.route,
+      'Xem lịch trình nháp',
+      'Điều chỉnh từng điểm dừng theo giờ.',
+    ),
+    (
+      LucideIcons.circleCheck,
+      'Chốt & lưu',
+      'Lịch trình đã chốt xuất hiện tại đây.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.colors;
+    final text = context.textStyles;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: AppRadius.card,
+        border: Border.all(color: scheme.outline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text('Cách hoạt động', style: text.titleSmall),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            for (var i = 0; i < _steps.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StationBadge(order: i + 1, size: AppSizes.stationBadgeSm),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _steps[i].$1,
+                                size: AppSizes.iconSm,
+                                color: scheme.primary,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Flexible(
+                                child: Text(
+                                  _steps[i].$2,
+                                  style: text.labelLarge,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(_steps[i].$3, style: text.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class PlannerPage extends ConsumerWidget {

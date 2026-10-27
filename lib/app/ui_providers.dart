@@ -4,12 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers.dart';
 
-/// App-wide appearance. Light until every screen is on the new design
-/// system; the redesign flips the default to [ThemeMode.system] at the end
-/// of Phase 3 (see docs/DESIGN_DIRECTION.md).
+/// App-wide appearance; follows the system by default. The choice from
+/// Tài khoản > Giao diện lasts for the session (not persisted yet).
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
-  ThemeMode build() => ThemeMode.light;
+  ThemeMode build() => ThemeMode.system;
 
   void set(ThemeMode mode) => state = mode;
 }

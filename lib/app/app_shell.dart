@@ -19,6 +19,7 @@ class AppShell extends ConsumerWidget {
     Destination.home,
     Destination.explore,
     Destination.metro,
+    Destination.account,
   };
 
   @override

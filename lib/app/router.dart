@@ -8,7 +8,10 @@ import '../features/foundation/domain/destination.dart';
 import 'app_shell.dart';
 import '../features/planner/presentation/finalized_trip_view.dart';
 import '../features/planner/presentation/planner_page.dart';
-import '../shared/widgets/content_states.dart';
+import '../core/widgets/widgets.dart';
+
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
 import '../core/navigation/payment_return_intent.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/auth_pages.dart';
@@ -48,9 +51,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/private',
-        builder: (_, _) => Scaffold(
-          appBar: AppBar(title: const Text('Phiên tài khoản mẫu')),
-          body: const SafeArea(child: AuthAccountPage()),
+        builder: (_, _) => const Scaffold(
+          appBar: AppTopBar(title: 'Phiên tài khoản mẫu'),
+          body: SafeArea(top: false, child: AuthAccountPage(showHeader: false)),
         ),
       ),
       ShellRoute(
@@ -88,30 +91,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/payment-return',
         builder: (context, state) {
           final intent = PaymentReturnIntent.parseInternal(state.uri);
-          return Scaffold(
-            appBar: AppBar(title: const Text('Quay lại ứng dụng')),
-            body: SafeArea(
-              child: SingleChildScrollView(
-                child: EmptyContent(
-                  title: intent == null
-                      ? 'Liên kết chưa hợp lệ'
-                      : 'Chưa xác minh thanh toán',
-                  message: 'Bản M1 không tra cứu đơn hàng và không xác nhận quyền sử dụng.',
-                ),
-              ),
-            ),
+          return _StatusPage(
+            title: 'Quay lại ứng dụng',
+            illustration: intent == null
+                ? IllustrationKind.error
+                : IllustrationKind.offline,
+            heading: intent == null
+                ? 'Liên kết chưa hợp lệ'
+                : 'Chưa xác minh thanh toán',
+            message: 'Bản offline không tra cứu đơn hàng và không xác nhận quyền sử dụng.',
           );
         },
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      appBar: AppBar(title: const Text('LocalMate AI')),
-      body: SafeArea(
-        child: ErrorContent(
-          message: 'Màn hình này chưa khả dụng.',
-          onRetry: () => context.go('/home'),
-        ),
-      ),
+    errorBuilder: (context, state) => const _StatusPage(
+      title: 'LocalMate AI',
+      illustration: IllustrationKind.emptySearch,
+      heading: 'Không tìm thấy màn hình',
+      message: 'Màn hình này chưa khả dụng.',
     ),
   );
   ref.onDispose(router.dispose);
@@ -121,4 +118,40 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _AuthRouterRefresh extends ChangeNotifier {
   void changed() => notifyListeners();
+}
+
+/// Full-page status (payment return, unknown route) with a way home.
+class _StatusPage extends StatelessWidget {
+  const _StatusPage({
+    required this.title,
+    required this.illustration,
+    required this.heading,
+    required this.message,
+  });
+  final String title;
+  final IllustrationKind illustration;
+  final String heading;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppTopBar(title: title),
+    body: SafeArea(
+      top: false,
+      child: Center(
+        child: SingleChildScrollView(
+          child: AppStateView(
+            illustration: illustration,
+            title: heading,
+            message: message,
+            primaryAction: AppButton(
+              label: 'Về trang chủ',
+              icon: LucideIcons.house,
+              onPressed: () => context.go('/home'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
