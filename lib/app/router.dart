@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../dev/component_gallery_screen.dart';
 import '../features/foundation/domain/destination.dart';
 import '../features/planner/presentation/planner_page.dart';
 import '../shared/widgets/content_states.dart';
@@ -27,6 +29,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/', redirect: (_, _) => '/home'),
+      if (kDebugMode)
+        GoRoute(
+          path: '/dev/gallery',
+          builder: (_, _) => const ComponentGalleryScreen(),
+        ),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/planner', builder: (_, _) => const PlannerPage()),
       GoRoute(

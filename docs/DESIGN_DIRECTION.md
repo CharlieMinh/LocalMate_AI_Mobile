@@ -2,6 +2,15 @@
 
 Ngày: 27/10/2026 · Đi kèm: `docs/UI_AUDIT.md`
 
+> **Quyết định đã duyệt (27/10/2026):**
+> - Chọn **Hướng B "Tuyến Ga"**.
+> - Duyệt package: `skeletonizer`, `flutter_animate`, `animations`, `lucide_icons_flutter`, `cached_network_image`, `url_launcher`, `connectivity_plus`. Không dùng `flutter_svg`; minh họa vẽ bằng `CustomPainter`.
+> - Được phép tách logic form planner sang `PlannerFormController`, với điều kiện giữ nguyên hành vi.
+> - Sở thích là **tùy chọn**.
+> - Hero trang chủ dùng **minh họa vector**.
+> - Các câu hỏi còn lại trong `UI_AUDIT.md` (phạm vi màn mới, test, disclaimer, `/private`, bottom nav 5 tab) theo đề xuất đã ghi trong audit.
+> - Ghi chú kỹ thuật: font Be Vietnam Pro không có ký tự "→" (U+2192), nên mũi tên trong UI dùng icon `LucideIcons.arrowRight`.
+
 Ràng buộc chung cho cả hai hướng:
 - Giữ nhận diện **navy #1D3E82 + amber #F6A623 + Be Vietnam Pro**, thống nhất với bản web và thiết kế gốc.
 - Chuẩn Material 3, có dark mode đầy đủ.
