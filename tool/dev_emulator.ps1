@@ -3,8 +3,10 @@ param(
     [string]$AvdName = 'LocalMate_Pixel',
     [string]$SystemImage = 'system-images;android-35;google_apis;x86_64',
     [string]$DeviceProfile = 'pixel_8',
-    # Optional --dart-define-from-file; without it the app runs in mock mode.
-    [string]$ConfigFile = '',
+    # --dart-define-from-file; defaults to the live backend config the release APK uses.
+    [string]$ConfigFile = 'config/dart_defines.production.local.json',
+    # Run on local fixtures instead of a backend.
+    [switch]$Mock,
     # Only boot and place the emulator; start the app from VS Code (F5) instead.
     [switch]$NoRun
 )
@@ -71,14 +73,21 @@ if ($window) {
 }
 
 if ($NoRun) {
-    Write-Host "Emulator $serial ready. Press F5 in VS Code; saving a .dart file hot-reloads the app."
+    Write-Host "Emulator $serial ready. Press F5 in VS Code ('LocalMate · Android (live)' for real data); saving a .dart file hot-reloads the app."
     return
 }
 Push-Location $repositoryRoot
 try {
     $runArguments = @('run', '-d', $serial)
-    if ($ConfigFile) {
-        if (-not (Test-Path -LiteralPath $ConfigFile -PathType Leaf)) { throw "Config file not found: $ConfigFile" }
+    if ($Mock) {
+        Write-Host 'Mock mode: local fixtures, no backend.'
+    }
+    else {
+        if (-not (Test-Path -LiteralPath $ConfigFile -PathType Leaf)) {
+            throw "Config file not found: $ConfigFile. Copy config/dart_defines.production.example.json and fill it, or pass -Mock."
+        }
+        $apiBaseUrl = (Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json).API_BASE_URL
+        Write-Host "Backend: $apiBaseUrl"
         $runArguments += "--dart-define-from-file=$ConfigFile"
     }
     Write-Host 'r = hot reload, R = hot restart, q = quit.'
