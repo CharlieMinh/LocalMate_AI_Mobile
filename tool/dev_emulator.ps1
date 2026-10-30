@@ -38,17 +38,27 @@ if ($AvdName -notin $existingAvds) {
     }
 }
 
-$serial = (& $adb devices) | Select-String '^(emulator-\d+)\s+device' |
-    ForEach-Object { $_.Matches[0].Groups[1].Value } | Select-Object -First 1
+# Serials only encode the console port, so ask each emulator which AVD it runs;
+# a phone or another AVD connected at the same time must not be picked up.
+function Find-AvdSerial {
+    foreach ($candidate in (& $adb devices) | Select-String '^(emulator-\d+)\s' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value }) {
+        $name = @(& $adb -s $candidate emu avd name 2>$null) | Select-Object -First 1
+        if ($name -and $name.Trim() -eq $AvdName) { return $candidate }
+    }
+}
+
+$deadline = (Get-Date).AddMinutes(4)
+$serial = Find-AvdSerial
 if (-not $serial) {
     Write-Host "Starting $AvdName..."
     Start-Process -FilePath $emulator -ArgumentList @('-avd', $AvdName, '-no-boot-anim') -WindowStyle Normal
-    & $adb wait-for-device
-    $serial = (& $adb devices) | Select-String '^(emulator-\d+)\s+device' |
-        ForEach-Object { $_.Matches[0].Groups[1].Value } | Select-Object -First 1
+    while (-not ($serial = Find-AvdSerial)) {
+        if ((Get-Date) -gt $deadline) { throw "$AvdName did not appear in adb within 4 minutes." }
+        Start-Sleep -Seconds 2
+    }
 }
 Write-Host "Waiting for $serial to finish booting..."
-$deadline = (Get-Date).AddMinutes(4)
 while (((& $adb -s $serial shell getprop sys.boot_completed 2>$null) -join '').Trim() -ne '1') {
     if ((Get-Date) -gt $deadline) { throw 'Emulator did not boot within 4 minutes.' }
     Start-Sleep -Seconds 2
@@ -61,8 +71,10 @@ Add-Type -Namespace LocalMate -Name Win32 -MemberDefinition @'
 public struct RECT { public int Left, Top, Right, Bottom; }
 '@
 Add-Type -AssemblyName System.Windows.Forms
+# The emulator window title reads "Android Emulator - <avd>:<port>".
 $window = Get-Process -Name 'qemu-system-*' -ErrorAction SilentlyContinue |
-    Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
+    Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero -and $_.MainWindowTitle -like "*$AvdName*" } |
+    Select-Object -First 1
 if ($window) {
     $rect = New-Object LocalMate.Win32+RECT
     [void][LocalMate.Win32]::GetWindowRect($window.MainWindowHandle, [ref]$rect)
