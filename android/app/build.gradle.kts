@@ -69,6 +69,14 @@ flutter {
     source = "../.."
 }
 
+// A domain name, never an IP literal ([::1] keeps its brackets in URI.host) or a local name.
+// A numeric last label also catches loopback shorthands such as 127.1 or 127.0.0.2.
+fun isPublicDomain(host: String?): Boolean {
+    val labels = host.orEmpty().lowercase().removeSuffix(".").split('.')
+    return labels.size >= 2 && labels.none { it.isEmpty() } &&
+        Regex("[a-z][a-z0-9-]*").matches(labels.last()) && labels.last() != "localhost"
+}
+
 // Fail before producing a distributable APK with missing signing or local/mock data.
 // Values are intentionally omitted from diagnostics to avoid leaking credentials.
 val validateLocalMateRelease = tasks.register("validateLocalMateRelease") {
@@ -103,8 +111,7 @@ val validateLocalMateRelease = tasks.register("validateLocalMateRelease") {
             "Release requires APP_ENV=production. Use config/dart_defines.production.local.json."
         }
         val api = runCatching { URI(defines["API_BASE_URL"].orEmpty()) }.getOrNull()
-        check(api != null && api.scheme == "https" && !api.host.isNullOrBlank() &&
-            api.host.lowercase() !in setOf("localhost", "127.0.0.1", "10.0.2.2", "::1") &&
+        check(api != null && api.scheme == "https" && isPublicDomain(api.host) &&
             api.userInfo == null && api.query == null && api.fragment == null &&
             api.path.orEmpty() in setOf("", "/")) {
             "Release requires the public HTTPS backend origin without /api, credentials or query parameters."

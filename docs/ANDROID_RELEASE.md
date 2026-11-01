@@ -51,7 +51,7 @@ Nếu chưa bật Google thì để Client ID rỗng. File `.local.json` bị gi
 - File certificate `.pem` và fingerprint SHA-1/SHA-256 là **public**, có thể gửi Leader. Với Google đăng nhập Android cần đăng ký client Android có đúng package + SHA-1 release trong cùng Google Cloud project với Web Client ID.
 - Sau này phát hành qua Google Play, nếu Play App Signing dùng chứng thư khác thì phải đăng ký thêm fingerprint của **app signing certificate**, không nhầm với upload certificate.
 
-Không có khóa trên CI vẫn build debug bình thường. Release sẽ dừng nếu thiếu signing, không dùng APP_ENV production hoặc API không phải origin HTTPS public.
+Không có khóa trên CI vẫn build debug bình thường. Release sẽ dừng nếu thiếu signing, không dùng APP_ENV production hoặc API không phải origin HTTPS public. API phải là tên miền công khai; địa chỉ IP (kể cả `[::1]`, `127.x`, `10.0.2.2`), tên một nhãn và `*.localhost` đều bị từ chối.
 
 Gradle hỗ trợ `-Plocalmate.signingProperties=<path>` nếu cần trỏ trực tiếp tới file properties bên ngoài repo. Khi không truyền, mặc định dùng `android/key.properties`. Tùy chọn này cũng cho phép kiểm tra debug/CI khi không có khóa release mà không di chuyển file riêng tư.
 
