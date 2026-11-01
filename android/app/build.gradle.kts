@@ -1,7 +1,21 @@
+import java.net.URI
+import java.util.Base64
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// This file is local-only. CI/debug builds do not require release credentials.
+val releasePropertiesFile = rootProject.file(
+    providers.gradleProperty("localmate.signingProperties").orNull ?: "key.properties"
+)
+val releaseProperties = Properties().apply {
+    if (releasePropertiesFile.isFile) {
+        releasePropertiesFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -28,9 +42,19 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = releaseProperties.getProperty("keyAlias")
+            keyPassword = releaseProperties.getProperty("keyPassword")
+            storeFile = releaseProperties.getProperty("storeFile")?.let { file(it) }
+            storePassword = releaseProperties.getProperty("storePassword")
+            storeType = releaseProperties.getProperty("storeType", "PKCS12")
+        }
+    }
+
     buildTypes {
         release {
-            // Release signing will be configured in M9, never substitute debug keys.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
@@ -43,4 +67,50 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Fail before producing a distributable APK with missing signing or local/mock data.
+// Values are intentionally omitted from diagnostics to avoid leaking credentials.
+val validateLocalMateRelease = tasks.register("validateLocalMateRelease") {
+    group = "verification"
+    description = "Require private signing material and an HTTPS production API."
+    doLast {
+        check(releasePropertiesFile.isFile) {
+            "Release signing is missing. Configure android/key.properties; see docs/ANDROID_RELEASE.md."
+        }
+        for (name in listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) {
+            check(!releaseProperties.getProperty(name).isNullOrBlank()) {
+                "Release signing property '$name' is missing."
+            }
+        }
+        check(file(releaseProperties.getProperty("storeFile")).isFile) {
+            "The configured release keystore does not exist."
+        }
+        val defines = providers.gradleProperty("dart-defines").orNull.orEmpty()
+            .split(',').filter { it.isNotBlank() }.associate { encoded ->
+                val decoded = try {
+                    String(Base64.getDecoder().decode(encoded), Charsets.UTF_8)
+                } catch (_: IllegalArgumentException) {
+                    error("Invalid encoded Dart defines.")
+                }
+                decoded.substringBefore('=') to decoded.substringAfter('=', "")
+            }
+        val appKeys = setOf("APP_ENV", "API_BASE_URL", "GOOGLE_SERVER_CLIENT_ID")
+        check(defines.keys.all { it in appKeys || it.startsWith("FLUTTER_") || it == "DART_VERSION" }) {
+            "Release allows only app config and Flutter build metadata; keep server credentials out of Dart defines."
+        }
+        check(defines["APP_ENV"] == "production") {
+            "Release requires APP_ENV=production. Use config/dart_defines.production.local.json."
+        }
+        val api = runCatching { URI(defines["API_BASE_URL"].orEmpty()) }.getOrNull()
+        check(api != null && api.scheme == "https" && !api.host.isNullOrBlank() &&
+            api.host.lowercase() !in setOf("localhost", "127.0.0.1", "10.0.2.2", "::1") &&
+            api.userInfo == null && api.query == null && api.fragment == null &&
+            api.path.orEmpty() in setOf("", "/")) {
+            "Release requires the public HTTPS backend origin without /api, credentials or query parameters."
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(validateLocalMateRelease)
 }
