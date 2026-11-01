@@ -8,7 +8,8 @@
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <activity
             android:name="vn.io.localmate.mobile.MainActivity"
             android:exported="true"
